@@ -17,6 +17,25 @@ const auth = async (req, res, next) => {
             throw new Error();
         }
 
+        // Check if user is banned and handle automatic ban lifting
+        if (user.isBanned) {
+            const wasLifted = await user.checkAndLiftBan();
+            if (!wasLifted) {
+                // Ban is still active
+                const remainingTime = user.getRemainingBanTime();
+                return res.status(403).json({
+                    error: 'Account banned',
+                    reason: user.banReason,
+                    bannedAt: user.bannedAt,
+                    remainingTime: remainingTime ? {
+                        hours: remainingTime.hours,
+                        minutes: remainingTime.minutes
+                    } : null
+                });
+            }
+            // Ban was lifted, continue with authenticated request
+        }
+
         req.token = token;
         req.user = user;
         next();

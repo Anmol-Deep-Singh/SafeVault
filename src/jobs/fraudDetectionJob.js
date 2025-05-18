@@ -1,58 +1,71 @@
 const cron = require('node-cron');
 const { detectFraud } = require('../utils/fraudDetection');
 const { saveReport } = require('../utils/reportGenerator');
+const Email = require('../models/email');
 
-// Log mockup fraud detection report
-function logFraudReport(reportPath, fraudReport) {
+// Save fraud report email
+async function saveFraudReport(reportPath, fraudReport) {
     const { summary } = fraudReport;
     const hasHighSeverity = summary.bySeverity.HIGH > 0;
 
     const emailContent = `
-=============== MOCKUP EMAIL ===============
-From: admin@safevault.com
-To: admin@safevault.com
-Subject: [${hasHighSeverity ? 'URGENT' : 'DAILY'}] Fraud Detection Report - ${new Date().toLocaleDateString()}
-------------------------------------------
+<div class="email-content">
+    <h2>Daily Fraud Detection Report</h2>
+    <p><strong>Period:</strong> ${new Date(fraudReport.period.start).toLocaleString()} - ${new Date(fraudReport.period.end).toLocaleString()}</p>
+    
+    <div class="summary-section">
+        <h3>Summary</h3>
+        <ul>
+            <li>Total Alerts: ${summary.totalAlerts}</li>
+            <li>High Severity Alerts: ${summary.bySeverity.HIGH}</li>
+            <li>Medium Severity Alerts: ${summary.bySeverity.MEDIUM}</li>
+        </ul>
+    </div>
 
-Daily Fraud Detection Report
----------------------------
-Period: ${new Date(fraudReport.period.start).toLocaleString()} - ${new Date(fraudReport.period.end).toLocaleString()}
+    <div class="alerts-section">
+        <h3>Alerts Breakdown</h3>
+        <ul>
+            <li>Large Transactions: ${summary.byType.largeTransactions}</li>
+            <li>Frequent Transactions: ${summary.byType.frequentTransactions}</li>
+            <li>Rapid Transactions: ${summary.byType.rapidTransactions}</li>
+        </ul>
+    </div>
 
-Summary:
-- Total Alerts: ${summary.totalAlerts}
-- High Severity Alerts: ${summary.bySeverity.HIGH}
-- Medium Severity Alerts: ${summary.bySeverity.MEDIUM}
+    <div class="report-links">
+        <p><strong>Report files generated:</strong></p>
+        <ul>
+            <li>HTML Report: ${reportPath}</li>
+        </ul>
+    </div>
+</div>`;
 
-Report files generated:
-- HTML Report: ${reportPath}
+    const email = new Email({
+        subject: `[${hasHighSeverity ? 'URGENT' : 'DAILY'}] Fraud Detection Report - ${new Date().toLocaleDateString()}`,
+        content: emailContent,
+        type: 'FRAUD_ALERT',
+        severity: hasHighSeverity ? 'HIGH' : 'MEDIUM'
+    });
 
-------------------------------------------
-=============== END EMAIL ===============
-`;
-
-    console.log(emailContent);
+    await email.save();
 }
 
-// Log mockup error report
-function logErrorReport(error) {
+// Save error report email
+async function saveErrorReport(error) {
     const errorEmailContent = `
-=============== MOCKUP ERROR EMAIL ===============
-From: admin@safevault.com
-To: admin@safevault.com
-Subject: [ERROR] Fraud Detection Job Failed
-------------------------------------------
+<div class="email-content error">
+    <h2>Fraud Detection Job Error</h2>
+    <p>The fraud detection job failed with the following error:</p>
+    <pre class="error-stack">${error.stack}</pre>
+</div>`;
 
-Fraud Detection Job Error
-------------------------
-The fraud detection job failed with the following error:
+    const email = new Email({
+        subject: '[ERROR] Fraud Detection Job Failed',
+        content: errorEmailContent,
+        type: 'ERROR',
+        severity: 'HIGH'
+    });
 
-${error.stack}
-
-------------------------------------------
-=============== END EMAIL ===============
-`;
-
-    console.error(errorEmailContent);
+    await email.save();
 }
 
 // Run fraud detection and generate report
@@ -79,9 +92,10 @@ async function runFraudDetection() {
             json: jsonReportPath
         });
 
-        // Log report if there are any alerts
+        // Save email notification if there are any alerts
         if (fraudReport.summary.totalAlerts > 0) {
-            logFraudReport(htmlReportPath, fraudReport);
+            await saveFraudReport(htmlReportPath, fraudReport);
+            console.log('Fraud detection email notification saved');
         } else {
             console.log('No alerts found, skipping notification');
         }
@@ -89,8 +103,8 @@ async function runFraudDetection() {
         console.log('Fraud detection job completed successfully');
     } catch (error) {
         console.error('Fraud detection job failed:', error);
-        // Log error report
-        logErrorReport(error);
+        // Save error report email
+        await saveErrorReport(error);
     }
 }
 

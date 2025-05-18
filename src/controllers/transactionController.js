@@ -103,31 +103,7 @@ const getTransactionHistory = async (req, res) => {
     }
 };
 
-// Get user's current balance
-const getBalance = async (req, res) => {
-    try {
-        const user = await User.findById(req.user._id)
-            .select('INR Bitcoin Ethereum Dogecoin');
-        
-        res.status(200).json({
-            balances: {
-                INR: user.INR,
-                Bitcoin: user.Bitcoin,
-                Ethereum: user.Ethereum,
-                Dogecoin: user.Dogecoin
-            }
-        });
-    } catch (error) {
-        console.error('Balance fetch error:', error);
-        res.status(500).json({
-            error: 'Failed to fetch balance',
-            details: error.message
-        });
-    }
-};
-
 module.exports = {
     transferFunds,
-    getTransactionHistory,
-    getBalance
+    getTransactionHistory
 };

@@ -1,76 +1,222 @@
-# SafeVault - Your Secure Crypto Companion
+# SafeVault
 
-Hey there! I'm Anmoldeep Singh, and I'm excited to introduce you to SafeVault, a project I've poured my heart into. It's not just another cryptocurrency platform – it's your trusted companion for managing digital assets with peace of mind.
+A secure and efficient digital transaction management system that enables users to perform secure transactions while providing administrative controls for enhanced security and monitoring.
 
-## What Makes SafeVault Special?
+## Features
 
-SafeVault isn't just about storing cryptocurrencies; it's about making your crypto journey smooth and secure. Here's what you can do:
+- Secure user authentication and authorization
+- Transaction management with real-time processing
+- Admin dashboard for user management and monitoring
+- Permanent account deletion capabilities
+- Comprehensive API documentation
+- Security measures including password verification and admin authentication
 
-- Manage multiple cryptocurrencies (Bitcoin, Ethereum, Dogecoin) in one place
-- Convert between currencies using real-time rates (thanks to CoinGecko!)
-- Track your portfolio with beautiful, real-time visualizations
-- Send and receive funds with other SafeVault users
-- Rest easy with our robust security measures
+## Installation
 
-## Getting Started
-
-Getting up and running is super easy! Here's what you need to do:
-
+1. Clone the repository:
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/SafeVault.git
+cd SafeVault
+```
 
-# Install dependencies
+2. Install dependencies:
+```bash
 npm install
+```
 
-# Set up your environment variables
-cp .env.example .env
-# (Don't forget to fill in your details!)
+3. Set up environment variables:
+Create a `.env` file in the root directory with the following variables:
+```env
+PORT=3000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+ADMIN_EMAIL=admin@safevault.com
+ADMIN_PASSWORD=secure_admin_password
+```
 
-# Start the server
+4. Start the application:
+```bash
 npm start
 ```
 
-## Tech Stack
+## API Documentation
 
-I've carefully chosen these technologies to give you the best experience:
+### Authentication Routes
 
-- Node.js & Express - For a rock-solid backend
-- MongoDB - Keeping your data safe and organized
-- JWT - For secure authentication
-- CoinGecko API - Real-time crypto prices
-- React - For a smooth, responsive frontend
+#### User Login
+```http
+POST /api/auth/login
+```
+Request body:
+```json
+{
+    "email": "user@example.com",
+    "password": "userpassword"
+}
+```
 
-## Features That Make Life Easier
+#### Admin Login
+```http
+POST /api/admin/login
+```
+Request body:
+```json
+{
+    "email": "admin@safevault.com",
+    "password": "adminpassword"
+}
+```
 
-### Real-time Currency Conversion
-Convert between INR and cryptocurrencies using up-to-the-minute rates. No more manual calculations!
+### User Routes
 
-### Smart Portfolio Tracking
-Keep an eye on your investments with our intuitive dashboard. Watch your portfolio grow in real-time!
+#### Get All Users (Admin)
+```http
+GET /api/admin/users
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
 
-### Secure Transactions
-Every transaction is protected with industry-standard security. Your funds are in safe hands.
+#### Delete Own Account
+```http
+DELETE /api/users/delete
+```
+Headers:
+```
+Authorization: Bearer {user_token}
+```
+Request body:
+```json
+{
+    "password": "current_password"
+}
+```
 
-### Detailed Reports
-Generate comprehensive PDF reports of your transaction history and portfolio performance whenever you need them.
+### Admin Routes
 
-## Contributing
+#### Permanently Delete User
+```http
+DELETE /api/admin/users/:username/delete
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
 
-Got ideas to make SafeVault even better? I'd love to hear them! Feel free to:
+#### Get Flagged and Banned Users
+```http
+GET /api/admin/users/flagged-banned
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+#### Ban User
+```http
+POST /api/admin/users/:userId/ban
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
 
-## Get in Touch
+#### Flag User
+```http
+POST /api/admin/users/:userId/flag
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
 
-Having questions or ideas? Let's chat!
+### Transaction Routes
 
-- Email: [anmoldeep20112003@gmail.com]
+#### Get All Transactions (Admin)
+```http
+GET /api/admin/transactions
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
 
-Made with love by Anmoldeep Singh
+### Email Management Routes
 
-*P.S. Don't forget to star the repo if you like what you see!*
+#### Get All Emails (Admin)
+```http
+GET /api/admin/emails
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
+
+#### Get Email by ID (Admin)
+```http
+GET /api/admin/emails/:emailId
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
+
+#### Delete Email (Admin)
+```http
+DELETE /api/admin/emails/:emailId
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
+
+#### Mark Email as Read (Admin)
+```http
+PATCH /api/admin/emails/:emailId/read
+```
+Headers:
+```
+Authorization: Bearer {admin_token}
+```
+
+## Response Formats
+
+All API responses follow this general format:
+
+### Success Response
+```json
+{
+    "message": "Operation successful",
+    "data": {
+        // Response data
+    }
+}
+```
+
+### Error Response
+```json
+{
+    "error": "Error message",
+    "details": "Detailed error information"
+}
+```
+
+## Security Features
+
+- JWT-based authentication
+- Password hashing using bcrypt
+- Admin authentication middleware
+- Request validation
+- Error handling and logging
+- Secure password verification for account deletion
+
+## Author
+
+**Anmoldeep Singh**
+- GitHub: [github.com/anmoldeepsingh](https://github.com/anmoldeepsingh)
+- LinkedIn: [linkedin.com/in/anmoldeepsingh](https://linkedin.com/in/anmoldeepsingh)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

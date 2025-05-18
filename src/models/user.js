@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
     fullName: {
@@ -43,57 +44,85 @@ const userSchema = new mongoose.Schema({
         default: 0,
         min: 0
     },
-    isDeleted: {
+    // Ban related fields
+    isBanned: {
         type: Boolean,
-        default: false,
-        index: true
+        default: false
     },
-    deletedAt: {
-        type: Date,
-        default: null
+    banReason: {
+        type: String
+    },
+    bannedAt: {
+        type: Date
+    },
+    banDuration: {
+        type: Number,
+        default: 48, // Default ban duration in hours
+    },
+    bannedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin'
+    },
+    // Flag related fields
+    isFlaged: {
+        type: Boolean,
+        default: false
+    },
+    flagReason: {
+        type: String
+    },
+    flaggedAt: {
+        type: Date
+    },
+    flaggedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin'
     }
 }, { 
     timestamps: true 
 });
 
-// Add compound index for soft delete queries
-userSchema.index({ isDeleted: 1, deletedAt: 1 });
-
-// Add query middleware to exclude soft deleted records by default
-userSchema.pre('find', function() {
-    if (!this.getQuery().includeSoftDeleted) {
-        this.where({ isDeleted: false });
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+    if (this.isModified('password')) {
+        this.password = await bcrypt.hash(this.password, 10);
     }
+    next();
 });
 
-userSchema.pre('findOne', function() {
-    if (!this.getQuery().includeSoftDeleted) {
-        this.where({ isDeleted: false });
+// Add method to check and lift ban
+userSchema.methods.checkAndLiftBan = async function() {
+    if (this.isBanned && this.bannedAt) {
+        const banEndTime = new Date(this.bannedAt.getTime() + (this.banDuration * 60 * 60 * 1000));
+        if (new Date() >= banEndTime) {
+            this.isBanned = false;
+            this.banReason = null;
+            this.bannedAt = null;
+            this.banDuration = 48; // Reset to default
+            await this.save();
+            return true; // Ban was lifted
+        }
     }
-});
-
-userSchema.pre('countDocuments', function() {
-    if (!this.getQuery().includeSoftDeleted) {
-        this.where({ isDeleted: false });
-    }
-});
-
-// Add methods for soft delete operations
-userSchema.methods.softDelete = async function() {
-    this.isDeleted = true;
-    this.deletedAt = new Date();
-    await this.save();
+    return false; // Ban is still active or user is not banned
 };
 
-userSchema.methods.restore = async function() {
-    this.isDeleted = false;
-    this.deletedAt = null;
-    await this.save();
-};
-
-// Static method to find including soft deleted
-userSchema.statics.findWithSoftDeleted = function() {
-    return this.find().where('includeSoftDeleted').equals(true);
+// Add method to get remaining ban time
+userSchema.methods.getRemainingBanTime = function() {
+    if (!this.isBanned || !this.bannedAt) return null;
+    
+    const banEndTime = new Date(this.bannedAt.getTime() + (this.banDuration * 60 * 60 * 1000));
+    const remainingTime = banEndTime - new Date();
+    
+    if (remainingTime <= 0) return null;
+    
+    const hours = Math.floor(remainingTime / (60 * 60 * 1000));
+    const minutes = Math.floor((remainingTime % (60 * 60 * 1000)) / (60 * 1000));
+    
+    return {
+        hours,
+        minutes,
+        total: remainingTime
+    };
 };
 
 const User = mongoose.model('User', userSchema);
