@@ -117,8 +117,8 @@ npm test
 ## Author
 
 **Anmoldeep Singh**
-- GitHub: [github.com/anmoldeepsingh](https://github.com/anmoldeepsingh)
-- LinkedIn: [linkedin.com/in/anmoldeepsingh](https://linkedin.com/in/anmoldeepsingh)
+- GitHub: [github.com/anmoldeepsingh](https://github.com/Anmol-Deep-Singh)
+- LinkedIn: [linkedin.com/in/anmoldeepsingh](https://www.linkedin.com/in/anmoldeep-singh-066526202/)
 
 ## License
 
