@@ -2,14 +2,13 @@ const Transaction = require('../models/transaction').Transaction;
 const User = require('../models/user');
 const { getCurrentRates } = require('../utils/conversionRates');
 
-// Fraud detection rules
+
 const FRAUD_RULES = {
     LARGE_TRANSACTION_PERCENTAGE: 0.9, // 90% of total assets
     MAX_DAILY_TRANSACTIONS: 50,
-    SUSPICIOUS_TIME_WINDOW: 5 * 60 * 1000, // 5 minutes in milliseconds
+    SUSPICIOUS_TIME_WINDOW: 5 * 60 * 1000, 
     MAX_TRANSACTIONS_IN_WINDOW: 10
 };
-
 // Calculate total assets value in INR
 async function calculateTotalAssetsInINR(user) {
     const rates = await getCurrentRates();
@@ -21,7 +20,7 @@ async function calculateTotalAssetsInINR(user) {
     return user.INR + bitcoinValueINR + ethereumValueINR + dogecoinValueINR;
 }
 
-// Convert transaction amount to INR
+
 async function convertToINR(amount, currencyType) {
     if (currencyType === 'INR') return amount;
     
@@ -29,7 +28,7 @@ async function convertToINR(amount, currencyType) {
     return amount * rates[currencyType].INR;
 }
 
-// Check for large transactions
+
 async function checkLargeTransactions(startDate, endDate) {
     const alerts = [];
     const transactions = await Transaction.find({
@@ -41,13 +40,13 @@ async function checkLargeTransactions(startDate, endDate) {
         const sender = await User.findById(tx.sender.userId);
         if (!sender) continue;
 
-        // Calculate total assets in INR
+        
         const totalAssetsINR = await calculateTotalAssetsInINR(sender);
         
-        // Convert transaction amount to INR for comparison
+        
         const transactionAmountINR = await convertToINR(tx.amount, tx.currencyType);
         
-        // Check if transaction amount exceeds 90% of total assets
+        
         if (transactionAmountINR > totalAssetsINR * FRAUD_RULES.LARGE_TRANSACTION_PERCENTAGE) {
             alerts.push({
                 type: 'LARGE_TRANSACTION',

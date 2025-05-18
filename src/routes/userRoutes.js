@@ -17,7 +17,7 @@ const {
     convertCurrencies
 } = require('../controllers/conversionController');
 
-// Middleware to check if user is banned
+
 const checkBannedStatus = async (req, res, next) => {
     try {
         const user = req.user;
@@ -34,11 +34,11 @@ const checkBannedStatus = async (req, res, next) => {
     }
 };
 
-// All routes require authentication
+
 router.use(auth);
 router.use(checkBannedStatus);
 
-// Get user details with conversion history
+
 router.get('/:userId', async (req, res) => {
     try {
         const user = await User.findById(req.params.userId);
@@ -46,7 +46,7 @@ router.get('/:userId', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Get conversion transactions
+        
         const conversionTransactions = await Transaction.find({
             'sender.userId': user._id,
             currencyType: { 
@@ -59,7 +59,7 @@ router.get('/:userId', async (req, res) => {
             }
         })
         .sort({ timestamp: -1 })
-        .limit(10); // Get last 10 conversions
+        .limit(10); 
 
         res.json({
             userDetails: {
@@ -103,20 +103,19 @@ router.post('/transfer/:username',
 );
 
 router.get('/history/:userId', async (req, res, next) => {
-    // Verify user is requesting their own history
     if (req.user._id.toString() !== req.params.userId) {
         return res.status(403).json({ error: 'Can only view your own transaction history' });
     }
     next();
 }, getTransactionHistory);
 
-// Conversion Routes
+
 router.get('/conversion/rates', getCurrentRates);
 
 router.post('/conversion/convert/:userId',
     validateConversion,
     async (req, res, next) => {
-        // Verify user is converting their own funds
+        
         if (req.user._id.toString() !== req.params.userId) {
             return res.status(403).json({ error: 'Can only convert your own funds' });
         }

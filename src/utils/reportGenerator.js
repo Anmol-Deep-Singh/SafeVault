@@ -1,7 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-// Generate HTML report
 function generateHTMLReport(fraudReport) {
     const { timestamp, period, alerts, summary } = fraudReport;
 
@@ -105,7 +104,6 @@ function generateHTMLReport(fraudReport) {
     `;
 }
 
-// Save report to file
 async function saveReport(report, type = 'html') {
     const timestamp = new Date().toISOString().split('T')[0];
     const reportsDir = path.join(process.cwd(), 'reports');

@@ -79,13 +79,20 @@ function getChangeColor(change) {
 
 async function generateUserReport(user, transactions) {
     try {
+        console.log('Starting PDF generation for user:', user._id);
+        console.log('User data:', JSON.stringify(user, null, 2));
+        console.log('Transactions data:', JSON.stringify(transactions, null, 2));
+        
         const doc = new PDFDocument({
             size: 'A4',
-            margin: 50
+            margin: 50,
+            bufferPages: true // Enable page buffering
         });
 
         // Create reports directory if it doesn't exist
         const reportsDir = path.join(process.cwd(), 'reports', 'users');
+        console.log('Creating reports directory at:', reportsDir);
+        
         if (!fs.existsSync(reportsDir)) {
             fs.mkdirSync(reportsDir, { recursive: true });
         }
@@ -93,7 +100,28 @@ async function generateUserReport(user, transactions) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `user_report_${user._id}_${timestamp}.pdf`;
         const filePath = path.join(reportsDir, filename);
+        console.log('PDF will be saved at:', filePath);
+
+        // Create a promise to track when the PDF is finished
+        const finishPromise = new Promise((resolve, reject) => {
+            doc.on('end', () => {
+                console.log('PDF generation completed');
+                resolve();
+            });
+            doc.on('error', (err) => {
+                console.error('Error during PDF generation:', err);
+                reject(err);
+            });
+        });
+
+        // Create write stream with error handling
         const writeStream = fs.createWriteStream(filePath);
+        writeStream.on('error', (err) => {
+            console.error('Error writing to file:', err);
+            reject(err);
+        });
+
+        // Pipe the PDF to the write stream
         doc.pipe(writeStream);
 
         // Title
@@ -122,7 +150,9 @@ async function generateUserReport(user, transactions) {
            .moveDown(0.5);
 
         // Get current crypto prices
+        console.log('Fetching crypto prices...');
         const cryptoPrices = await getCryptoPrices();
+        console.log('Crypto prices:', cryptoPrices);
 
         // Calculate total portfolio value
         let totalPortfolioValue = user.INR;
@@ -224,11 +254,32 @@ async function generateUserReport(user, transactions) {
                align: 'center'
            });
 
+        console.log('Ending PDF generation...');
         doc.end();
+        await finishPromise;
+
+        // Wait for the write stream to finish
+        await new Promise((resolve, reject) => {
+            writeStream.on('finish', resolve);
+            writeStream.on('error', reject);
+        });
+
+        // Verify the generated file
+        if (!fs.existsSync(filePath)) {
+            throw new Error('Generated file does not exist');
+        }
+
+        const stats = fs.statSync(filePath);
+        if (stats.size === 0) {
+            throw new Error('Generated file is empty');
+        }
+
+        console.log('PDF generation successful. File size:', stats.size, 'bytes');
 
         return {
             success: true,
-            filePath
+            filePath,
+            filename
         };
     } catch (error) {
         console.error('Error generating PDF:', error);

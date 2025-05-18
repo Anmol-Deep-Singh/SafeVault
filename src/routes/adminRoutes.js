@@ -15,13 +15,13 @@ const {
     permanentlyDeleteUser
 } = require('../controllers/adminController');
 
-// Admin login
+
 router.post('/login', adminLogin);
 
-// Protected admin routes
+
 router.use(adminAuth);
 
-// User management routes
+
 router.get('/users', getAllUsers);
 router.get('/users/flagged-banned', getFlaggedAndBannedUsers);
 router.post('/users/:userId/ban', banUser);
@@ -31,7 +31,7 @@ router.delete('/users/:username/delete', permanentlyDeleteUser);
 // Transaction management routes
 router.get('/transactions', getAllTransactions);
 
-// Email notification routes
+
 router.get('/emails', getEmails);
 router.get('/emails/:emailId', getEmailById);
 router.delete('/emails/:emailId', deleteEmail);

@@ -1,0 +1,3159 @@
+This is a very detailed API ENDPOINTS explaintaion refer API_Documentation for quick reference
+1. Authentication Routes (/api/auth)
+
+POST /api/auth/register - Register New User
+----------------------------------------
+{Description:
+Creates a new user account in the SafeVault system. This endpoint handles user registration with input validation and returns a JWT token for immediate authentication upon successful registration.
+
+URL: /api/auth/register
+Method: POST
+Authentication: Not Required
+
+Request Body Parameters:
+- fullName (string, required): User's full name (3-50 characters)
+- email (string, required): Valid email address
+- password (string, required): Strong password (8+ characters, must include uppercase, lowercase, number, special character)
+- mobileNumber (string, required): Valid mobile number with country code
+
+Sample Request:
+```json
+{
+    "fullName": "John Doe",
+    "email": "john.doe@example.com",
+    "password": "StrongPass123!",
+    "mobileNumber": "+911234567890"
+}
+```
+
+Success Response:
+- Status Code: 201 Created
+```json
+{
+    "success": true,
+    "message": "User registered successfully",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+        "id": "507f1f77bcf86cd799439011",
+        "fullName": "John Doe",
+        "email": "john.doe@example.com",
+        "mobileNumber": "+911234567890",
+        "createdAt": "2024-03-20T10:30:00Z"
+    }
+}
+```
+
+Error Responses:
+1. Invalid Input (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Validation failed",
+    "errors": {
+        "fullName": "Full name must be between 3 and 50 characters",
+        "email": "Invalid email format",
+        "password": "Password must contain at least 8 characters, including uppercase, lowercase, number and special character",
+        "mobileNumber": "Invalid mobile number format"
+    }
+}
+```
+
+2. Email Already Exists (Status Code: 409)
+```json
+{
+    "success": false,
+    "message": "User with this email already exists"
+}
+```
+
+3. Server Error (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Internal server error occurred"
+}
+```
+
+Validation Rules:
+1. Full Name:
+   - Required
+   - Length: 3-50 characters
+   - Allowed characters: letters, spaces, hyphens, apostrophes
+
+2. Email:
+   - Required
+   - Must be a valid email format
+   - Must be unique in the system
+   - Maximum length: 255 characters
+
+3. Password:
+   - Required
+   - Minimum length: 8 characters
+   - Must contain at least:
+     * One uppercase letter
+     * One lowercase letter
+     * One number
+     * One special character
+   - Maximum length: 128 characters
+
+4. Mobile Number:
+   - Required
+   - Must include country code
+   - Must be a valid phone number format
+   - Length: 10-15 digits (excluding country code)
+
+Notes:
+- The returned JWT token should be included in the Authorization header for subsequent authenticated requests
+- Token format: "Authorization: Bearer {token}"
+- The token has an expiration time of 24 hours
+- Password is automatically hashed before storage
+- Email verification link is sent to the registered email address}
+
+POST /api/auth/login - User Login
+----------------------------------------
+{Description:
+Authenticates a user and provides a JWT token for accessing protected routes. This endpoint verifies the user's credentials and returns their profile information along with current account balances.
+
+URL: /api/auth/login
+Method: POST
+Authentication: Not Required
+
+Request Body Parameters:
+- email (string, required): Registered email address
+- password (string, required): Account password
+
+Sample Request:
+```json
+{
+    "email": "john.doe@example.com",
+    "password": "StrongPass123!"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "Login successful",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+        "id": "507f1f77bcf86cd799439011",
+        "fullName": "John Doe",
+        "email": "john.doe@example.com",
+        "mobileNumber": "+911234567890",
+        "createdAt": "2024-03-20T10:30:00Z",
+        "lastLogin": "2024-03-21T15:45:00Z",
+        "balances": {
+            "INR": 100000.00,
+            "Bitcoin": 0.5,
+            "Ethereum": 2.0,
+            "Dogecoin": 1000
+        },
+        "accountStatus": "active"
+    }
+}
+```
+
+Error Responses:
+1. Invalid Credentials (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Invalid email or password"
+}
+```
+
+2. Account Locked (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Account locked due to multiple failed attempts. Please try again after 30 minutes",
+    "lockedUntil": "2024-03-21T16:15:00Z"
+}
+```
+
+3. Account Banned (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Account has been banned",
+    "banReason": "Policy violation",
+    "banDuration": "48 hours",
+    "banExpiry": "2024-03-23T15:45:00Z"
+}
+```
+
+4. Server Error (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Internal server error occurred"
+}
+```
+
+Security Features:
+1. Rate Limiting:
+   - Maximum 5 failed attempts within 15 minutes
+   - Account temporarily locked after exceeding limit
+   - Lock duration: 30 minutes
+   - IP-based rate limiting: 100 requests per hour
+
+2. Password Handling:
+   - Passwords are compared using secure hash comparison
+   - Timing attacks are mitigated
+   - Failed attempts are logged with timestamps
+
+3. Session Management:
+   - Previous sessions are invalidated on new login
+   - Concurrent login can be configured (default: allowed)
+   - Session activity is logged for security monitoring
+
+Response Details:
+1. Token Information:
+   - JWT token with 24-hour validity
+   - Contains user ID and role information
+   - Must be included in subsequent requests
+   - Format: "Authorization: Bearer {token}"
+
+2. Balance Information:
+   - Current balance in all supported currencies
+   - INR (Indian Rupees) as base currency
+   - Real-time conversion rates for cryptocurrencies
+   - Precision: 2 decimal places for INR, 8 for crypto
+
+3. Account Status:
+   - active: Normal account operation
+   - locked: Temporarily locked due to failed attempts
+   - banned: Account banned by admin
+   - suspended: Account suspended for verification
+
+Notes:
+- Successful login resets the failed attempt counter
+- Login attempts are logged with IP address and timestamp
+- Session information is stored for audit purposes
+- Account status changes trigger email notifications
+- Two-factor authentication can be enabled in account settings}
+
+GET /api/auth/profile - Get User Profile
+----------------------------------------
+{Description:
+Retrieves the authenticated user's complete profile information including account details, portfolio breakdown, recent activity, and transaction history. This is a protected endpoint that requires a valid JWT token.
+
+URL: /api/auth/profile
+Method: GET
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Parameters:
+- No request body required
+- Optional query parameters:
+  * include_transactions (boolean): Include recent transactions (default: false)
+  * include_conversions (boolean): Include recent conversions (default: false)
+  * transaction_limit (number): Limit number of transactions (default: 10, max: 50)
+
+Sample Request:
+```
+GET /api/auth/profile?include_transactions=true&transaction_limit=5
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "profile": {
+        "id": "507f1f77bcf86cd799439011",
+        "fullName": "John Doe",
+        "email": "john.doe@example.com",
+        "mobileNumber": "+911234567890",
+        "createdAt": "2024-03-20T10:30:00Z",
+        "lastLogin": "2024-03-21T15:45:00Z",
+        "accountStatus": "active",
+        "verificationStatus": {
+            "email": true,
+            "mobile": true,
+            "kyc": "completed"
+        }
+    },
+    "portfolio": {
+        "totalValueINR": 250000.00,
+        "breakdown": {
+            "INR": 100000.00,
+            "Bitcoin": {
+                "amount": 0.5,
+                "valueINR": 100000.00
+            },
+            "Ethereum": {
+                "amount": 2.0,
+                "valueINR": 40000.00
+            },
+            "Dogecoin": {
+                "amount": 1000,
+                "valueINR": 10000.00
+            }
+        },
+        "percentages": {
+            "INR": "40%",
+            "Bitcoin": "40%",
+            "Ethereum": "16%",
+            "Dogecoin": "4%"
+        },
+        "lastUpdated": "2024-03-21T16:00:00Z"
+    },
+    "recentActivity": {
+        "transactions": [
+            {
+                "id": "trans_123",
+                "type": "transfer",
+                "amount": 5000.00,
+                "currency": "INR",
+                "direction": "outgoing",
+                "recipient": "jane.smith@example.com",
+                "timestamp": "2024-03-21T15:30:00Z",
+                "status": "completed"
+            }
+        ],
+        "conversions": [
+            {
+                "id": "conv_456",
+                "fromCurrency": "INR",
+                "toCurrency": "Bitcoin",
+                "fromAmount": 100000.00,
+                "toAmount": 0.041,
+                "rate": 0.00000041,
+                "timestamp": "2024-03-21T14:20:00Z"
+            }
+        ],
+        "cashLogs": {
+            "currentBalance": 100000.00,
+            "transactionType": "all",
+            "totalTransactions": 10,
+            "logs": [
+                {
+                    "id": "cash_789",
+                    "type": "deposit",
+                    "amount": 10000.00,
+                    "timestamp": "2024-03-21T12:00:00Z",
+                    "status": "completed"
+                }
+            ]
+        }
+    },
+    "securitySettings": {
+        "twoFactorEnabled": true,
+        "lastPasswordChange": "2024-03-01T10:00:00Z",
+        "activeSessions": 1,
+        "loginAlerts": true
+    }
+}
+```
+
+Error Responses:
+1. Unauthorized Access (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Authentication token is missing or invalid"
+}
+```
+
+2. Token Expired (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Token has expired",
+    "code": "TOKEN_EXPIRED"
+}
+```
+
+3. Account Issues (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Account access restricted",
+    "reason": "Account is currently banned",
+    "resolution": "Contact support for assistance"
+}
+```
+
+4. Server Error (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Internal server error occurred"
+}
+```
+
+Response Details:
+1. Profile Information:
+   - Basic user details
+   - Account creation and last login timestamps
+   - Verification status for email, mobile, and KYC
+   - Account status indicators
+
+2. Portfolio Details:
+   - Total portfolio value in INR
+   - Breakdown of all currency balances
+   - Percentage distribution of assets
+   - Real-time valuations for cryptocurrencies
+
+3. Recent Activity:
+   - Latest transactions (transfers, deposits, withdrawals)
+   - Recent currency conversions
+   - Cash transaction logs
+   - All timestamps in ISO 8601 format
+
+4. Security Information:
+   - Two-factor authentication status
+   - Password management details
+   - Active session count
+   - Security preferences
+
+Performance Notes:
+- Response is cached for 5 minutes
+- Real-time balance updates bypass cache
+- Transaction history is paginated
+- Heavy queries may increase response time
+
+Security Considerations:
+- Token must be valid and not expired
+- User must be active and not banned
+- IP address must match session records
+- Suspicious activity triggers security alerts
+
+Notes:
+- All monetary values are in their respective currencies
+- Cryptocurrency values are calculated using current market rates
+- Transaction history is limited to last 30 days by default
+- Older transactions can be accessed via dedicated endpoints
+- Profile updates trigger email notifications}
+
+PATCH /api/auth/profile - Update User Profile
+----------------------------------------
+{Description:
+Updates the authenticated user's profile information. This protected endpoint allows users to modify their personal details, notification preferences, and security settings. Some fields may require additional verification.
+
+URL: /api/auth/profile
+Method: PATCH
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+Request Body Parameters:
+- fullName (string, optional): Updated full name (3-50 characters)
+- mobileNumber (string, optional): Updated mobile number with country code
+- notificationPreferences (object, optional): Updated notification settings
+- securitySettings (object, optional): Updated security preferences
+- avatar (string, optional): Base64 encoded image (max 1MB)
+
+Sample Request:
+```json
+{
+    "fullName": "John Smith",
+    "mobileNumber": "+911234567891",
+    "notificationPreferences": {
+        "emailNotifications": true,
+        "smsNotifications": true,
+        "loginAlerts": true,
+        "transactionAlerts": {
+            "minimum": 1000,
+            "enabled": true
+        }
+    },
+    "securitySettings": {
+        "twoFactorAuth": true,
+        "loginIpRestriction": false,
+        "sessionTimeout": 30
+    },
+    "avatar": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "Profile updated successfully",
+    "user": {
+        "id": "507f1f77bcf86cd799439011",
+        "fullName": "John Smith",
+        "email": "john.doe@example.com",
+        "mobileNumber": "+911234567891",
+        "avatarUrl": "https://safevault.com/avatars/507f1f77bcf86cd799439011.jpg",
+        "notificationPreferences": {
+            "emailNotifications": true,
+            "smsNotifications": true,
+            "loginAlerts": true,
+            "transactionAlerts": {
+                "minimum": 1000,
+                "enabled": true
+            }
+        },
+        "securitySettings": {
+            "twoFactorAuth": true,
+            "loginIpRestriction": false,
+            "sessionTimeout": 30,
+            "lastUpdated": "2024-03-21T16:30:00Z"
+        },
+        "updatedAt": "2024-03-21T16:30:00Z"
+    },
+    "verificationRequired": {
+        "mobileNumber": true,
+        "twoFactorAuth": true
+    }
+}
+```
+
+Error Responses:
+1. Unauthorized Access (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Authentication token is missing or invalid"
+}
+```
+
+2. Validation Error (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Validation failed",
+    "errors": {
+        "fullName": "Full name must be between 3 and 50 characters",
+        "mobileNumber": "Invalid mobile number format",
+        "avatar": "Image size exceeds 1MB limit"
+    }
+}
+```
+
+3. Verification Required (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Verification required",
+    "verificationDetails": {
+        "type": "mobile_number",
+        "verificationId": "ver_123456",
+        "expiresIn": 600
+    }
+}
+```
+
+4. Server Error (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Internal server error occurred"
+}
+```
+
+Field Validation Rules:
+1. Full Name:
+   - Length: 3-50 characters
+   - Allowed characters: letters, spaces, hyphens, apostrophes
+   - No consecutive spaces or special characters
+
+2. Mobile Number:
+   - Must include country code
+   - Valid phone number format
+   - Verification required for changes
+   - Previous number retained until verification
+
+3. Notification Preferences:
+   - Boolean values for notification types
+   - Valid minimum amount for transaction alerts
+   - At least one notification method enabled
+
+4. Security Settings:
+   - 2FA setup required if enabling
+   - Session timeout: 15-120 minutes
+   - Valid IP addresses for restrictions
+
+5. Avatar:
+   - Maximum size: 1MB
+   - Allowed formats: JPG, PNG
+   - Will be resized to standard dimensions
+   - Previous avatar deleted on update
+
+Update Restrictions:
+- Email cannot be changed through this endpoint
+- Some settings require additional verification
+- Certain changes trigger security notifications
+- Multiple updates within 24h may be rate limited
+
+Security Considerations:
+1. Authentication:
+   - Valid JWT token required
+   - Token must not be expired
+   - User must be active
+
+2. Verification:
+   - Mobile number changes require OTP
+   - 2FA changes require current 2FA code
+   - Email notification for critical changes
+
+3. Rate Limiting:
+   - Maximum 10 updates per day
+   - Cooldown period for sensitive fields
+   - IP-based rate limiting applied
+
+Notes:
+- Updates are atomic (all or nothing)
+- Previous values are preserved on error
+- Change history is maintained
+- Notifications sent for security-related changes
+- Some updates may require re-authentication
+- Profile picture processing may take a few seconds}
+
+
+1. User Routes (/api/users)
+
+GET /api/users/:userId - Get User Details
+----------------------------------------
+{Description:
+Retrieves detailed information about a specific user by their ID. This endpoint is typically used by administrators or authorized users to view user details, transaction history, and account status. The response includes comprehensive user information while maintaining data privacy and security.
+
+URL: /api/users/:userId
+Method: GET
+Authentication: Required (JWT Token with Admin privileges)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+URL Parameters:
+- userId (string, required): The unique identifier of the user
+
+Optional Query Parameters:
+- include_transactions (boolean): Include user's transaction history (default: false)
+- include_kyc (boolean): Include KYC verification details (default: false)
+- include_login_history (boolean): Include recent login attempts (default: false)
+
+Sample Request:
+```
+GET /api/users/507f1f77bcf86cd799439011?include_transactions=true&include_kyc=true
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "user": {
+        "id": "507f1f77bcf86cd799439011",
+        "fullName": "John Doe",
+        "email": "john.doe@example.com",
+        "mobileNumber": "+911234567890",
+        "createdAt": "2024-03-20T10:30:00Z",
+        "lastLogin": "2024-03-21T15:45:00Z",
+        "accountStatus": "active",
+        "role": "user",
+        "verificationStatus": {
+            "email": true,
+            "mobile": true,
+            "kyc": "completed",
+            "lastUpdated": "2024-03-20T11:00:00Z"
+        },
+        "kycDetails": {
+            "documentType": "passport",
+            "documentNumber": "XXXXXXXXXX",
+            "verificationDate": "2024-03-20T11:00:00Z",
+            "expiryDate": "2029-03-20T00:00:00Z",
+            "status": "verified"
+        },
+        "accountBalances": {
+            "INR": {
+                "available": 100000.00,
+                "locked": 0.00,
+                "pending": 5000.00
+            },
+            "Bitcoin": {
+                "available": 0.5,
+                "locked": 0.0,
+                "pending": 0.0,
+                "valueINR": 100000.00
+            },
+            "Ethereum": {
+                "available": 2.0,
+                "locked": 0.0,
+                "pending": 0.0,
+                "valueINR": 40000.00
+            }
+        },
+        "recentTransactions": [
+            {
+                "id": "trans_123",
+                "type": "deposit",
+                "amount": 50000.00,
+                "currency": "INR",
+                "status": "completed",
+                "timestamp": "2024-03-21T14:30:00Z",
+                "description": "Bank transfer deposit"
+            },
+            {
+                "id": "trans_124",
+                "type": "withdrawal",
+                "amount": 25000.00,
+                "currency": "INR",
+                "status": "pending",
+                "timestamp": "2024-03-21T15:45:00Z",
+                "description": "Bank withdrawal request"
+            }
+        ],
+        "loginHistory": [
+            {
+                "timestamp": "2024-03-21T15:45:00Z",
+                "ipAddress": "192.168.1.1",
+                "device": "iPhone 13",
+                "location": "Mumbai, India",
+                "status": "success"
+            },
+            {
+                "timestamp": "2024-03-21T10:30:00Z",
+                "ipAddress": "192.168.1.2",
+                "device": "Chrome Windows",
+                "location": "Mumbai, India",
+                "status": "success"
+            }
+        ],
+        "securitySettings": {
+            "twoFactorEnabled": true,
+            "loginIpRestriction": false,
+            "lastPasswordChange": "2024-03-01T10:00:00Z",
+            "activeSessions": 2
+        }
+    }
+}
+```
+
+Error Responses:
+1. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "User not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+2. Unauthorized Access (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Authentication token is missing or invalid"
+}
+```
+
+3. Insufficient Permissions (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Insufficient permissions to access user details",
+    "error": "PERMISSION_DENIED"
+}
+```
+
+4. Server Error (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Internal server error occurred"
+}
+```
+
+Response Details:
+1. User Information:
+   - Basic profile details
+   - Account status and role
+   - Verification status for various checks
+   - Creation and last login timestamps
+
+2. KYC Information (if requested):
+   - Document details
+   - Verification status and dates
+   - Compliance information
+   - Document expiry details
+
+3. Account Balances:
+   - Available balance
+   - Locked/frozen amounts
+   - Pending transactions
+   - Real-time cryptocurrency values
+
+4. Transaction History (if requested):
+   - Recent transactions
+   - Transaction status and details
+   - Timestamps and descriptions
+   - Associated metadata
+
+5. Login History (if requested):
+   - Recent login attempts
+   - IP addresses and locations
+   - Device information
+   - Success/failure status
+
+Security Considerations:
+1. Access Control:
+   - Requires admin privileges
+   - IP address logging
+   - Rate limiting applied
+   - Audit trail maintained
+
+2. Data Privacy:
+   - Sensitive data masked
+   - Compliance with data protection
+   - Limited scope based on permissions
+   - Encrypted data transmission
+
+3. Rate Limiting:
+   - Maximum 100 requests per hour
+   - IP-based restrictions
+   - Concurrent request limits
+   - Cooldown periods enforced
+
+Notes:
+- Response is cached for 1 minute
+- Sensitive data is partially masked
+- Transaction history limited to 30 days
+- Login history limited to 10 entries
+- Real-time balance calculation
+- Audit logs are maintained for all access}
+
+POST /api/users/transfer/:username - Transfer Funds
+----------------------------------------
+{Description:
+Transfers funds between users within the SafeVault system. This endpoint handles both fiat (INR) and cryptocurrency transfers between registered users, ensuring secure and atomic transactions.
+
+URL: /api/users/transfer/:username
+Method: POST
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+URL Parameters:
+- username (string, required): Username/email of the recipient
+
+Request Body Parameters:
+- amount (number, required): Amount to transfer
+- currency (string, required): Currency code (INR, Bitcoin, Ethereum, Dogecoin)
+- description (string, optional): Transfer description or note
+- otp (string, required): One-time password for transfer verification
+
+Sample Request:
+```json
+{
+    "amount": 5000.00,
+    "currency": "INR",
+    "description": "Rent payment",
+    "otp": "123456"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "Transfer completed successfully",
+    "transaction": {
+        "id": "trans_789",
+        "type": "transfer",
+        "amount": 5000.00,
+        "currency": "INR",
+        "sender": "john.doe@example.com",
+        "recipient": "jane.smith@example.com",
+        "description": "Rent payment",
+        "timestamp": "2024-03-21T16:45:00Z",
+        "status": "completed",
+        "balanceAfterTransaction": 95000.00
+    }
+}
+```
+
+Error Responses:
+1. Insufficient Balance (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Insufficient balance",
+    "error": "INSUFFICIENT_BALANCE",
+    "currentBalance": 4000.00,
+    "requiredAmount": 5000.00
+}
+```
+
+2. Invalid OTP (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid or expired OTP",
+    "error": "INVALID_OTP"
+}
+```
+
+3. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "Recipient user not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+4. Transfer Limit Exceeded (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Daily transfer limit exceeded",
+    "error": "LIMIT_EXCEEDED",
+    "limit": 100000.00,
+    "remaining": 0.00
+}
+```
+
+Transfer Limits:
+1. INR:
+   - Minimum: ₹100
+   - Maximum per transaction: ₹100,000
+   - Daily limit: ₹500,000
+
+2. Cryptocurrencies:
+   - Bitcoin: 0.1 BTC daily limit
+   - Ethereum: 2 ETH daily limit
+   - Dogecoin: 10,000 DOGE daily limit
+
+Security Features:
+1. OTP Verification:
+   - Required for all transfers
+   - 6-digit code sent via SMS/email
+   - Valid for 5 minutes
+   - 3 attempts maximum
+
+2. Transfer Restrictions:
+   - KYC must be completed
+   - Account must be active
+   - No pending suspicious activity
+   - Cooling period for new accounts (24 hours)
+
+Notes:
+- Transfers are immediate and irreversible
+- Transaction fees may apply for crypto transfers
+- Both parties receive email notifications
+- Transfer history is maintained for audit
+- Daily limits reset at 00:00 UTC}
+
+GET /api/users/history/:userId - Get Transaction History
+----------------------------------------
+{Description:
+Retrieves the transaction history for a specific user, including transfers, deposits, withdrawals, and currency conversions. The response can be filtered and paginated based on various parameters.
+
+URL: /api/users/history/:userId
+Method: GET
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+URL Parameters:
+- userId (string, required): User ID to fetch history for
+
+Query Parameters:
+- page (number, optional): Page number for pagination (default: 1)
+- limit (number, optional): Items per page (default: 10, max: 50)
+- startDate (string, optional): Start date for filtering (ISO format)
+- endDate (string, optional): End date for filtering (ISO format)
+- type (string, optional): Transaction type (transfer, deposit, withdrawal, conversion)
+- currency (string, optional): Filter by currency
+- status (string, optional): Transaction status (completed, pending, failed)
+
+Sample Request:
+```
+GET /api/users/history/507f1f77bcf86cd799439011?page=1&limit=10&type=transfer&currency=INR
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "transactions": {
+        "items": [
+            {
+                "id": "trans_789",
+                "type": "transfer",
+                "amount": 5000.00,
+                "currency": "INR",
+                "sender": "john.doe@example.com",
+                "recipient": "jane.smith@example.com",
+                "description": "Rent payment",
+                "timestamp": "2024-03-21T16:45:00Z",
+                "status": "completed",
+                "balanceAfterTransaction": 95000.00
+            },
+            {
+                "id": "trans_788",
+                "type": "deposit",
+                "amount": 10000.00,
+                "currency": "INR",
+                "source": "bank_transfer",
+                "description": "Bank deposit",
+                "timestamp": "2024-03-21T14:30:00Z",
+                "status": "completed",
+                "balanceAfterTransaction": 100000.00
+            }
+        ],
+        "pagination": {
+            "currentPage": 1,
+            "totalPages": 5,
+            "totalItems": 48,
+            "itemsPerPage": 10
+        },
+        "summary": {
+            "totalInflow": 50000.00,
+            "totalOutflow": 25000.00,
+            "netChange": 25000.00,
+            "periodStart": "2024-03-01T00:00:00Z",
+            "periodEnd": "2024-03-21T23:59:59Z"
+        }
+    }
+}
+```
+
+Error Responses:
+1. Invalid Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid parameters",
+    "errors": {
+        "startDate": "Must be a valid date",
+        "limit": "Must be between 1 and 50"
+    }
+}
+```
+
+2. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "User not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+Response Details:
+1. Transaction Items:
+   - Unique transaction ID
+   - Transaction type and details
+   - Amount and currency
+   - Timestamp and status
+   - Balance after transaction
+
+2. Pagination Info:
+   - Current page number
+   - Total pages available
+   - Total items count
+   - Items per page
+
+3. Period Summary:
+   - Total inflow/outflow
+   - Net change in balance
+   - Period start/end dates
+
+Notes:
+- Transactions older than 12 months available on request
+- All amounts in original transaction currency
+- Timestamps in UTC
+- Maximum 50 items per page
+- Data cached for 5 minutes}
+
+GET /api/users/conversion/rates - Get Current Conversion Rates
+----------------------------------------
+{Description:
+Retrieves current conversion rates for all supported currencies in the SafeVault system. Rates are updated in real-time from multiple reliable sources to ensure accurate currency conversion.
+
+URL: /api/users/conversion/rates
+Method: GET
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- base_currency (string, optional): Base currency for rates (default: INR)
+- currencies (string, optional): Comma-separated list of specific currencies to fetch
+
+Sample Request:
+```
+GET /api/users/conversion/rates?base_currency=INR&currencies=Bitcoin,Ethereum
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "base": "INR",
+    "timestamp": "2024-03-21T16:50:00Z",
+    "rates": {
+        "Bitcoin": {
+            "buy": 4200000.00,
+            "sell": 4180000.00,
+            "change24h": 2.5,
+            "lastUpdated": "2024-03-21T16:49:55Z"
+        },
+        "Ethereum": {
+            "buy": 180000.00,
+            "sell": 179000.00,
+            "change24h": -1.2,
+            "lastUpdated": "2024-03-21T16:49:55Z"
+        },
+        "Dogecoin": {
+            "buy": 5.20,
+            "sell": 5.15,
+            "change24h": 0.8,
+            "lastUpdated": "2024-03-21T16:49:55Z"
+        }
+    },
+    "marketInfo": {
+        "24hVolume": {
+            "Bitcoin": 1250.5,
+            "Ethereum": 15000.2,
+            "Dogecoin": 2000000
+        },
+        "marketStatus": "open",
+        "nextUpdate": "2024-03-21T16:50:55Z"
+    }
+}
+```
+
+Error Responses:
+1. Invalid Currency (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid currency specified",
+    "error": "INVALID_CURRENCY",
+    "supportedCurrencies": ["INR", "Bitcoin", "Ethereum", "Dogecoin"]
+}
+```
+
+2. Market Closed (Status Code: 503)
+```json
+{
+    "success": false,
+    "message": "Market currently closed",
+    "error": "MARKET_CLOSED",
+    "reopenTime": "2024-03-22T03:30:00Z"
+}
+```
+
+Rate Details:
+1. Cryptocurrency Rates:
+   - Updated every minute
+   - Aggregated from multiple exchanges
+   - Includes buy/sell spread
+   - 24-hour price change
+
+2. Market Information:
+   - Trading volume
+   - Market status
+   - Next update time
+   - Historical trends
+
+Notes:
+- Rates cached for 60 seconds
+- All amounts in specified base currency
+- Minimum rate refresh interval: 60 seconds
+- Historical rates available via separate endpoint
+- Rate alerts can be configured in user settings}
+
+POST /api/users/conversion/convert/:userId - Convert Between Currencies
+----------------------------------------
+{Description:
+Converts funds between different currencies for a specific user. Supports conversion between INR and cryptocurrencies, as well as between different cryptocurrencies. Conversions are executed at current market rates with appropriate safety checks.
+
+URL: /api/users/conversion/convert/:userId
+Method: POST
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+URL Parameters:
+- userId (string, required): User ID performing the conversion
+
+Request Body Parameters:
+- fromCurrency (string, required): Source currency code
+- toCurrency (string, required): Target currency code
+- amount (number, required): Amount to convert in source currency
+- rateId (string, required): Rate ID from the rates API (valid for 60 seconds)
+- otp (string, required): One-time password for verification
+
+Sample Request:
+```json
+{
+    "fromCurrency": "INR",
+    "toCurrency": "Bitcoin",
+    "amount": 100000.00,
+    "rateId": "rate_123456",
+    "otp": "123456"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "conversion": {
+        "id": "conv_789",
+        "timestamp": "2024-03-21T16:55:00Z",
+        "fromCurrency": "INR",
+        "toCurrency": "Bitcoin",
+        "fromAmount": 100000.00,
+        "toAmount": 0.023809,
+        "rate": 4200000.00,
+        "fee": 500.00,
+        "status": "completed",
+        "balances": {
+            "INR": {
+                "before": 200000.00,
+                "after": 99500.00
+            },
+            "Bitcoin": {
+                "before": 0.5,
+                "after": 0.523809
+            }
+        }
+    }
+}
+```
+
+Error Responses:
+1. Insufficient Balance (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Insufficient balance",
+    "error": "INSUFFICIENT_BALANCE",
+    "required": 100000.00,
+    "available": 90000.00
+}
+```
+
+2. Rate Expired (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Conversion rate has expired",
+    "error": "RATE_EXPIRED",
+    "newRateId": "rate_123457"
+}
+```
+
+3. Invalid OTP (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid or expired OTP",
+    "error": "INVALID_OTP"
+}
+```
+
+4. Conversion Limits (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Conversion limit exceeded",
+    "error": "LIMIT_EXCEEDED",
+    "limit": {
+        "daily": 1000000.00,
+        "remaining": 0.00,
+        "resetTime": "2024-03-22T00:00:00Z"
+    }
+}
+```
+
+Conversion Limits:
+1. INR to Crypto:
+   - Minimum: ₹1,000
+   - Maximum per transaction: ₹1,000,000
+   - Daily limit: ₹5,000,000
+
+2. Crypto to INR:
+   - Minimum: Equivalent to ₹1,000
+   - Maximum: Equivalent to ₹1,000,000
+   - Daily limit: Equivalent to ₹5,000,000
+
+3. Crypto to Crypto:
+   - Based on equivalent INR value
+   - Same limits as above apply
+
+Fees:
+1. INR to Crypto:
+   - 0.5% of transaction value
+   - Minimum fee: ₹100
+   - Maximum fee: ₹5,000
+
+2. Crypto to INR:
+   - 0.5% of transaction value
+   - Minimum fee: Equivalent to ₹100
+   - Maximum fee: Equivalent to ₹5,000
+
+3. Crypto to Crypto:
+   - 1% of transaction value
+   - Minimum fee: Equivalent to ₹200
+   - Maximum fee: Equivalent to ₹10,000
+
+Security Features:
+1. Rate Protection:
+   - Rates valid for 60 seconds
+   - Rate ID required for conversion
+   - Slippage protection built-in
+
+2. OTP Verification:
+   - Required for all conversions
+   - Valid for 5 minutes
+   - 3 attempts maximum
+
+Notes:
+- Conversions are immediate and irreversible
+- Market orders only (no limit orders)
+- Email confirmation sent after conversion
+- Transaction history updated instantly
+- Rates include all applicable fees
+- KYC must be completed for crypto conversion}
+
+1. Cash Routes (/api/cash)
+
+POST /api/cash/deposit - Deposit Money (INR)
+----------------------------------------
+{Description:
+Handles INR deposits into the user's SafeVault account. Supports multiple payment methods including bank transfer, UPI, and payment gateways. The endpoint processes the deposit request and updates the user's INR balance accordingly.
+
+URL: /api/cash/deposit
+Method: POST
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+Request Body Parameters:
+- amount (number, required): Amount to deposit in INR
+- paymentMethod (string, required): Payment method (bank_transfer, upi, card)
+- paymentDetails (object, required): Payment method specific details
+- description (string, optional): Deposit description
+
+Sample Request:
+```json
+{
+    "amount": 10000.00,
+    "paymentMethod": "upi",
+    "paymentDetails": {
+        "upiId": "user@upi",
+        "name": "John Doe"
+    },
+    "description": "Salary deposit"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "deposit": {
+        "id": "dep_123",
+        "amount": 10000.00,
+        "paymentMethod": "upi",
+        "status": "completed",
+        "timestamp": "2024-03-21T17:00:00Z",
+        "transactionId": "upi_789",
+        "balanceAfterDeposit": 110000.00
+    },
+    "paymentDetails": {
+        "upiTransactionId": "upi_789",
+        "status": "success",
+        "paymentTimestamp": "2024-03-21T17:00:00Z"
+    }
+}
+```
+
+Error Responses:
+1. Invalid Amount (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid deposit amount",
+    "error": "INVALID_AMOUNT",
+    "limits": {
+        "minimum": 100,
+        "maximum": 1000000
+    }
+}
+```
+
+2. Payment Failed (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Payment processing failed",
+    "error": "PAYMENT_FAILED",
+    "details": {
+        "reason": "Insufficient funds in source account",
+        "transactionId": "upi_789"
+    }
+}
+```
+
+Deposit Limits:
+1. UPI:
+   - Minimum: ₹100
+   - Maximum per transaction: ₹100,000
+   - Daily limit: ₹500,000
+
+2. Bank Transfer:
+   - Minimum: ₹1,000
+   - Maximum per transaction: ₹1,000,000
+   - Daily limit: ₹5,000,000
+
+3. Card:
+   - Minimum: ₹100
+   - Maximum per transaction: ₹200,000
+   - Daily limit: ₹500,000
+
+Notes:
+- Deposits are subject to payment gateway processing time
+- Bank transfers may take 1-2 business days
+- UPI transactions are typically instant
+- Email receipt sent after successful deposit
+- Multiple payment attempts tracked for security}
+
+POST /api/cash/withdraw - Withdraw Money (INR)
+----------------------------------------
+{Description:
+Processes INR withdrawals from the user's SafeVault account to their registered bank account or UPI ID. Includes necessary security checks and validations before processing the withdrawal.
+
+URL: /api/cash/withdraw
+Method: POST
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+Request Body Parameters:
+- amount (number, required): Amount to withdraw in INR
+- withdrawalMethod (string, required): Withdrawal method (bank_transfer, upi)
+- accountDetails (object, required): Bank account or UPI details
+- otp (string, required): One-time password for verification
+- description (string, optional): Withdrawal description
+
+Sample Request:
+```json
+{
+    "amount": 50000.00,
+    "withdrawalMethod": "bank_transfer",
+    "accountDetails": {
+        "accountNumber": "1234567890",
+        "ifscCode": "ABCD0001234",
+        "accountHolderName": "John Doe"
+    },
+    "otp": "123456",
+    "description": "Monthly withdrawal"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "withdrawal": {
+        "id": "with_123",
+        "amount": 50000.00,
+        "withdrawalMethod": "bank_transfer",
+        "status": "processing",
+        "timestamp": "2024-03-21T17:05:00Z",
+        "estimatedCompletionTime": "2024-03-22T17:05:00Z",
+        "balanceAfterWithdrawal": 60000.00
+    },
+    "transferDetails": {
+        "transactionId": "bank_789",
+        "bankReference": "REF123456",
+        "status": "initiated"
+    }
+}
+```
+
+Error Responses:
+1. Insufficient Balance (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Insufficient balance",
+    "error": "INSUFFICIENT_BALANCE",
+    "currentBalance": 40000.00,
+    "requiredAmount": 50000.00
+}
+```
+
+2. Invalid Bank Details (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid bank account details",
+    "error": "INVALID_BANK_DETAILS",
+    "errors": {
+        "ifscCode": "Invalid IFSC code format",
+        "accountNumber": "Account number must be 9-18 digits"
+    }
+}
+```
+
+3. Withdrawal Limit Exceeded (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Withdrawal limit exceeded",
+    "error": "LIMIT_EXCEEDED",
+    "limit": {
+        "daily": 200000.00,
+        "remaining": 0.00,
+        "resetTime": "2024-03-22T00:00:00Z"
+    }
+}
+```
+
+Withdrawal Limits:
+1. Bank Transfer:
+   - Minimum: ₹1,000
+   - Maximum per transaction: ₹200,000
+   - Daily limit: ₹500,000
+
+2. UPI:
+   - Minimum: ₹100
+   - Maximum per transaction: ₹100,000
+   - Daily limit: ₹200,000
+
+Processing Times:
+1. Bank Transfer:
+   - Processing time: 1-2 business days
+   - Cut-off time: 3 PM IST
+   - Weekend processing: No
+
+2. UPI:
+   - Processing time: 30 minutes
+   - 24/7 processing
+   - Instant for selected banks
+
+Security Features:
+1. OTP Verification:
+   - Required for all withdrawals
+   - Valid for 5 minutes
+   - 3 attempts maximum
+
+2. Bank Account Verification:
+   - Penny drop verification
+   - Name matching
+   - IFSC validation
+
+Notes:
+- First withdrawal requires additional verification
+- Bank account must be KYC verified
+- Processing fees may apply
+- Email notification sent at each status change
+- Withdrawal history maintained for 7 years}
+
+GET /api/cash/transactions - Get Cash Transaction History
+----------------------------------------
+{Description:
+Retrieves the history of all cash transactions (deposits and withdrawals) for the authenticated user. Supports filtering and pagination for efficient data retrieval.
+
+URL: /api/cash/transactions
+Method: GET
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- page (number, optional): Page number for pagination (default: 1)
+- limit (number, optional): Items per page (default: 10, max: 50)
+- startDate (string, optional): Start date for filtering (ISO format)
+- endDate (string, optional): End date for filtering (ISO format)
+- type (string, optional): Transaction type (deposit, withdrawal)
+- status (string, optional): Transaction status (completed, processing, failed)
+- minAmount (number, optional): Minimum transaction amount
+- maxAmount (number, optional): Maximum transaction amount
+
+Sample Request:
+```
+GET /api/cash/transactions?page=1&limit=10&type=deposit&status=completed
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "transactions": {
+        "items": [
+            {
+                "id": "trans_123",
+                "type": "deposit",
+                "amount": 10000.00,
+                "method": "upi",
+                "status": "completed",
+                "timestamp": "2024-03-21T17:00:00Z",
+                "description": "Salary deposit",
+                "balanceAfterTransaction": 110000.00,
+                "paymentDetails": {
+                    "upiId": "user@upi",
+                    "transactionId": "upi_789"
+                }
+            },
+            {
+                "id": "trans_122",
+                "type": "withdrawal",
+                "amount": 50000.00,
+                "method": "bank_transfer",
+                "status": "completed",
+                "timestamp": "2024-03-20T15:30:00Z",
+                "description": "Monthly withdrawal",
+                "balanceAfterTransaction": 100000.00,
+                "transferDetails": {
+                    "bankReference": "REF123456",
+                    "accountNumber": "XXXXXX7890"
+                }
+            }
+        ],
+        "pagination": {
+            "currentPage": 1,
+            "totalPages": 5,
+            "totalItems": 48,
+            "itemsPerPage": 10
+        },
+        "summary": {
+            "totalDeposits": 150000.00,
+            "totalWithdrawals": 75000.00,
+            "netChange": 75000.00,
+            "periodStart": "2024-03-01T00:00:00Z",
+            "periodEnd": "2024-03-21T23:59:59Z"
+        }
+    }
+}
+```
+
+Error Responses:
+1. Invalid Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid parameters",
+    "errors": {
+        "startDate": "Must be a valid date",
+        "limit": "Must be between 1 and 50",
+        "type": "Must be either deposit or withdrawal"
+    }
+}
+```
+
+2. Date Range Too Large (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Date range too large",
+    "error": "INVALID_DATE_RANGE",
+    "maxDays": 90
+}
+```
+
+Response Details:
+1. Transaction Items:
+   - Unique transaction ID
+   - Transaction type and method
+   - Amount and status
+   - Timestamp and description
+   - Balance after transaction
+
+2. Pagination Info:
+   - Current page number
+   - Total pages available
+   - Total items count
+   - Items per page
+
+3. Period Summary:
+   - Total deposits and withdrawals
+   - Net change in balance
+   - Period coverage
+
+Notes:
+- Transactions available for last 12 months
+- Older transactions available on request
+- All amounts in INR
+- Timestamps in UTC
+- Maximum 50 items per page
+- Data cached for 5 minutes}
+
+1. Admin Routes (/api/admin)
+
+POST /api/admin/login - Admin Login
+----------------------------------------
+{Description:
+Authenticates an administrator and provides a JWT token with elevated privileges for accessing admin-only routes. This endpoint includes additional security measures and logging for administrative access.
+
+URL: /api/admin/login
+Method: POST
+Authentication: Not Required
+Headers Required: 
+- Content-Type: application/json
+
+Request Body Parameters:
+- email (string, required): Admin email address
+- password (string, required): Admin password
+- totpCode (string, required): Time-based one-time password (2FA)
+
+Sample Request:
+```json
+{
+    "email": "admin@safevault.com",
+    "password": "SecureAdminPass123!",
+    "totpCode": "123456"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "Admin login successful",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "admin": {
+        "id": "admin_123",
+        "email": "admin@safevault.com",
+        "role": "admin",
+        "lastLogin": "2024-03-21T17:15:00Z",
+        "permissions": [
+            "user_management",
+            "transaction_view",
+            "system_settings",
+            "reports_access"
+        ]
+    },
+    "session": {
+        "id": "sess_789",
+        "expiresAt": "2024-03-21T19:15:00Z",
+        "ipAddress": "192.168.1.1"
+    }
+}
+```
+
+Error Responses:
+1. Invalid Credentials (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Invalid email or password",
+    "error": "INVALID_CREDENTIALS"
+}
+```
+
+2. Invalid 2FA Code (Status Code: 401)
+```json
+{
+    "success": false,
+    "message": "Invalid or expired TOTP code",
+    "error": "INVALID_TOTP"
+}
+```
+
+3. Account Locked (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Account temporarily locked",
+    "error": "ACCOUNT_LOCKED",
+    "lockedUntil": "2024-03-21T17:45:00Z"
+}
+```
+
+Security Features:
+1. Two-Factor Authentication:
+   - Mandatory for all admin accounts
+   - TOTP-based authentication
+   - 30-second code validity
+   - 3 attempts maximum
+
+2. Session Management:
+   - 2-hour session duration
+   - Single active session per admin
+   - IP-based restrictions
+   - Activity logging
+
+3. Rate Limiting:
+   - 5 attempts per 15 minutes
+   - IP-based blocking
+   - Geographic restrictions
+   - Suspicious activity monitoring
+
+Notes:
+- All admin actions are logged
+- IP whitelist can be configured
+- Session can be terminated remotely
+- Password change required every 30 days
+- Security alerts for unusual activity}
+
+GET /api/admin/users - List All Users
+----------------------------------------
+{Description:
+Retrieves a paginated list of all users in the system with their account details, balances, and status. This endpoint provides comprehensive user information for administrative purposes.
+
+URL: /api/admin/users
+Method: GET
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- page (number, optional): Page number (default: 1)
+- limit (number, optional): Items per page (default: 20, max: 100)
+- search (string, optional): Search by name, email, or mobile
+- status (string, optional): Filter by account status
+- kycStatus (string, optional): Filter by KYC status
+- sortBy (string, optional): Sort field (created, balance, status)
+- sortOrder (string, optional): Sort direction (asc, desc)
+
+Sample Request:
+```
+GET /api/admin/users?page=1&limit=20&status=active&sortBy=created&sortOrder=desc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "users": {
+        "items": [
+            {
+                "id": "user_123",
+                "fullName": "John Doe",
+                "email": "john.doe@example.com",
+                "mobileNumber": "+911234567890",
+                "createdAt": "2024-03-21T10:30:00Z",
+                "status": "active",
+                "kycStatus": "completed",
+                "balances": {
+                    "INR": 100000.00,
+                    "Bitcoin": 0.5,
+                    "Ethereum": 2.0
+                },
+                "lastLogin": "2024-03-21T15:45:00Z",
+                "accountFlags": [],
+                "riskLevel": "low"
+            }
+        ],
+        "pagination": {
+            "currentPage": 1,
+            "totalPages": 50,
+            "totalItems": 1000,
+            "itemsPerPage": 20
+        },
+        "summary": {
+            "totalUsers": 1000,
+            "activeUsers": 950,
+            "bannedUsers": 10,
+            "pendingKYC": 40,
+            "totalBalance": {
+                "INR": 10000000.00,
+                "Bitcoin": 50.0,
+                "Ethereum": 200.0
+            }
+        }
+    }
+}
+```
+
+Error Responses:
+1. Invalid Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid parameters",
+    "errors": {
+        "limit": "Must be between 1 and 100",
+        "sortBy": "Invalid sort field"
+    }
+}
+```
+
+2. Insufficient Permissions (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Insufficient permissions to access user list",
+    "error": "PERMISSION_DENIED"
+}
+```
+
+Response Details:
+1. User Information:
+   - Basic profile details
+   - Account status and KYC status
+   - Balance information
+   - Last activity timestamp
+   - Risk assessment
+
+2. Pagination Details:
+   - Current page and total pages
+   - Total number of users
+   - Items per page
+
+3. System Summary:
+   - User statistics by status
+   - Total system balances
+   - KYC completion rates
+
+Notes:
+- Response is cached for 1 minute
+- Sensitive data is partially masked
+- Export functionality available
+- Real-time balance calculation
+- Activity logs maintained}
+
+GET /api/admin/users/flagged-banned - Get Flagged and Banned Users
+----------------------------------------
+{Description:
+Retrieves a list of users who have been flagged for suspicious activity or banned from the platform. This endpoint helps administrators monitor and manage high-risk accounts.
+
+URL: /api/admin/users/flagged-banned
+Method: GET
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- page (number, optional): Page number (default: 1)
+- limit (number, optional): Items per page (default: 20, max: 100)
+- type (string, optional): Filter by type (flagged, banned, both)
+- sortBy (string, optional): Sort field (timestamp, risk_level)
+- sortOrder (string, optional): Sort direction (asc, desc)
+
+Sample Request:
+```
+GET /api/admin/users/flagged-banned?type=flagged&sortBy=timestamp&sortOrder=desc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "users": {
+        "items": [
+            {
+                "id": "user_123",
+                "fullName": "John Doe",
+                "email": "john.doe@example.com",
+                "status": "flagged",
+                "riskLevel": "high",
+                "flags": [
+                    {
+                        "type": "suspicious_transaction",
+                        "description": "Multiple large transactions in short period",
+                        "timestamp": "2024-03-21T16:30:00Z",
+                        "flaggedBy": "system"
+                    }
+                ],
+                "accountHistory": {
+                    "createdAt": "2024-03-01T10:00:00Z",
+                    "lastLogin": "2024-03-21T15:45:00Z",
+                    "totalTransactions": 50,
+                    "recentActivity": [
+                        {
+                            "type": "large_withdrawal",
+                            "amount": 500000.00,
+                            "timestamp": "2024-03-21T16:25:00Z"
+                        }
+                    ]
+                }
+            }
+        ],
+        "pagination": {
+            "currentPage": 1,
+            "totalPages": 5,
+            "totalItems": 100,
+            "itemsPerPage": 20
+        },
+        "summary": {
+            "totalFlagged": 80,
+            "totalBanned": 20,
+            "highRisk": 30,
+            "mediumRisk": 50,
+            "lowRisk": 20
+        }
+    }
+}
+```
+
+Error Responses:
+1. Invalid Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid parameters",
+    "errors": {
+        "type": "Must be one of: flagged, banned, both"
+    }
+}
+```
+
+2. Insufficient Permissions (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Insufficient permissions to access flagged/banned users",
+    "error": "PERMISSION_DENIED"
+}
+```
+
+Response Details:
+1. User Information:
+   - Basic profile details
+   - Current status and risk level
+   - Flag/ban history
+   - Recent activity
+
+2. Flag Types:
+   - suspicious_transaction
+   - unusual_login
+   - kyc_issues
+   - user_reported
+   - system_detected
+
+3. Risk Levels:
+   - high: Immediate attention required
+   - medium: Monitor closely
+   - low: Regular monitoring
+
+Notes:
+- Real-time updates via WebSocket
+- Automated flagging system
+- Manual review required for bans
+- Appeal process available
+- Audit trail maintained}
+
+POST /api/admin/users/:userId/ban - Ban a User
+----------------------------------------
+{Description:
+Bans a user from the platform, preventing them from accessing their account and performing any transactions. This action requires administrative privileges and proper documentation.
+
+URL: /api/admin/users/:userId/ban
+Method: POST
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+URL Parameters:
+- userId (string, required): ID of the user to ban
+
+Request Body Parameters:
+- reason (string, required): Reason for the ban
+- duration (string, required): Ban duration (permanent, 24h, 48h, 7d, 30d)
+- notes (string, optional): Additional administrative notes
+- evidence (array, optional): List of evidence IDs
+
+Sample Request:
+```json
+{
+    "reason": "Multiple violations of terms of service",
+    "duration": "7d",
+    "notes": "User has been warned multiple times",
+    "evidence": ["evidence_123", "evidence_124"]
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "User successfully banned",
+    "ban": {
+        "id": "ban_123",
+        "userId": "user_123",
+        "reason": "Multiple violations of terms of service",
+        "bannedBy": "admin_456",
+        "startTime": "2024-03-21T17:30:00Z",
+        "endTime": "2024-03-28T17:30:00Z",
+        "status": "active",
+        "evidenceIds": ["evidence_123", "evidence_124"]
+    },
+    "userNotification": {
+        "email": "sent",
+        "sms": "sent",
+        "timestamp": "2024-03-21T17:30:00Z"
+    }
+}
+```
+
+Error Responses:
+1. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "User not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+2. Invalid Ban Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid ban parameters",
+    "errors": {
+        "duration": "Must be one of: permanent, 24h, 48h, 7d, 30d",
+        "reason": "Reason is required"
+    }
+}
+```
+
+3. Already Banned (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "User is already banned",
+    "error": "ALREADY_BANNED",
+    "currentBan": {
+        "startTime": "2024-03-20T10:00:00Z",
+        "endTime": "2024-03-27T10:00:00Z"
+    }
+}
+```
+
+Ban Process:
+1. Account Access:
+   - Immediate account lockout
+   - Active sessions terminated
+   - API access revoked
+   - Read-only access to data
+
+2. Asset Handling:
+   - Withdrawals blocked
+   - Deposits blocked
+   - Trading disabled
+   - Existing orders cancelled
+
+3. Communication:
+   - Email notification sent
+   - SMS notification sent
+   - Support ticket created
+   - Ban reason provided
+
+Notes:
+- Requires senior admin approval
+- Full audit trail maintained
+- Appeal process available
+- Compliance team notified
+- Law enforcement notified if required}
+
+POST /api/admin/users/:userId/flag - Flag a User
+----------------------------------------
+{Description:
+Flags a user account for suspicious activity or potential violations. This action marks the account for increased monitoring and may trigger additional security measures.
+
+URL: /api/admin/users/:userId/flag
+Method: POST
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+URL Parameters:
+- userId (string, required): ID of the user to flag
+
+Request Body Parameters:
+- reason (string, required): Reason for flagging
+- riskLevel (string, required): Assigned risk level (low, medium, high)
+- notes (string, optional): Additional administrative notes
+- evidence (array, optional): List of evidence IDs
+- actions (array, optional): Immediate actions to take
+
+Sample Request:
+```json
+{
+    "reason": "Suspicious transaction pattern detected",
+    "riskLevel": "high",
+    "notes": "Multiple large transactions to known suspicious addresses",
+    "evidence": ["evidence_123", "evidence_124"],
+    "actions": ["restrict_withdrawals", "enhance_monitoring"]
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "User successfully flagged",
+    "flag": {
+        "id": "flag_123",
+        "userId": "user_123",
+        "reason": "Suspicious transaction pattern detected",
+        "riskLevel": "high",
+        "flaggedBy": "admin_456",
+        "timestamp": "2024-03-21T17:45:00Z",
+        "status": "active",
+        "evidenceIds": ["evidence_123", "evidence_124"],
+        "appliedActions": [
+            {
+                "type": "restrict_withdrawals",
+                "status": "applied",
+                "timestamp": "2024-03-21T17:45:00Z"
+            },
+            {
+                "type": "enhance_monitoring",
+                "status": "applied",
+                "timestamp": "2024-03-21T17:45:00Z"
+            }
+        ]
+    },
+    "notifications": {
+        "internal": {
+            "compliance": "notified",
+            "security": "notified"
+        }
+    }
+}
+```
+
+Error Responses:
+1. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "User not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+2. Invalid Flag Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid flag parameters",
+    "errors": {
+        "riskLevel": "Must be one of: low, medium, high",
+        "reason": "Reason is required"
+    }
+}
+```
+
+3. Already Flagged (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "User is already flagged",
+    "error": "ALREADY_FLAGGED",
+    "currentFlag": {
+        "reason": "Previous suspicious activity",
+        "timestamp": "2024-03-20T10:00:00Z"
+    }
+}
+```
+
+Available Actions:
+1. Account Restrictions:
+   - restrict_withdrawals
+   - restrict_deposits
+   - restrict_trading
+   - enhance_monitoring
+
+2. Security Measures:
+   - force_2fa
+   - require_kyc_reverification
+   - ip_restriction
+   - device_verification
+
+3. Monitoring:
+   - transaction_monitoring
+   - login_monitoring
+   - device_monitoring
+   - communication_monitoring
+
+Notes:
+- Multiple flags can exist
+- Automatic risk assessment
+- Compliance team notified
+- Regular review required
+- Flag history maintained}
+
+DELETE /api/admin/users/:username/delete - Delete a User
+----------------------------------------
+{Description:
+Permanently deletes a user account and associated data from the system. This is a critical operation that requires special administrative privileges and thorough documentation.
+
+URL: /api/admin/users/:username/delete
+Method: DELETE
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+URL Parameters:
+- username (string, required): Username of the account to delete
+
+Request Body Parameters:
+- reason (string, required): Reason for deletion
+- confirmationCode (string, required): Special admin confirmation code
+- retainData (boolean, optional): Whether to retain data for compliance (default: true)
+- notes (string, optional): Additional administrative notes
+
+Sample Request:
+```json
+{
+    "reason": "User requested account deletion",
+    "confirmationCode": "DEL-123456",
+    "retainData": true,
+    "notes": "Verified user identity before deletion"
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "User account successfully deleted",
+    "deletion": {
+        "id": "del_123",
+        "username": "john.doe",
+        "deletedBy": "admin_456",
+        "timestamp": "2024-03-21T18:00:00Z",
+        "status": "completed",
+        "retainedData": {
+            "type": "compliance_archive",
+            "retentionPeriod": "7 years",
+            "archiveId": "arch_789"
+        }
+    },
+    "cleanup": {
+        "accountData": "deleted",
+        "personalInfo": "anonymized",
+        "transactions": "archived",
+        "documents": "archived"
+    }
+}
+```
+
+Error Responses:
+1. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "User not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+2. Invalid Confirmation (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid confirmation code",
+    "error": "INVALID_CONFIRMATION"
+}
+```
+
+3. Active Balance (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Account has active balance",
+    "error": "ACTIVE_BALANCE",
+    "balances": {
+        "INR": 1000.00,
+        "Bitcoin": 0.1
+    }
+}
+```
+
+Deletion Process:
+1. Pre-deletion Checks:
+   - Balance verification
+   - Pending transactions check
+   - Legal hold check
+   - Compliance verification
+
+2. Data Handling:
+   - Personal data anonymization
+   - Transaction archival
+   - Document archival
+   - Activity log preservation
+
+3. System Cleanup:
+   - Account deactivation
+   - API token revocation
+   - Session termination
+   - Cache clearing
+
+4. Notifications:
+   - User notification
+   - Admin team notification
+   - Compliance notification
+   - Partner system updates
+
+Security Requirements:
+1. Authorization:
+   - Senior admin access only
+   - Two-factor verification
+   - IP restriction check
+   - Time-based authorization
+
+2. Validation:
+   - Confirmation code required
+   - Multiple admin approval
+   - Cooling period check
+   - Risk assessment
+
+Notes:
+- Operation is irreversible
+- Compliance data retained
+- Full audit trail created
+- Legal team notification
+- Backup created before deletion}
+
+GET /api/admin/transactions - Get All Transactions
+----------------------------------------
+{Description:
+Retrieves a comprehensive list of all transactions across the platform. This endpoint provides administrators with detailed transaction data for monitoring and compliance purposes.
+
+URL: /api/admin/transactions
+Method: GET
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- page (number, optional): Page number (default: 1)
+- limit (number, optional): Items per page (default: 20, max: 100)
+- startDate (string, optional): Start date for filtering (ISO format)
+- endDate (string, optional): End date for filtering (ISO format)
+- type (string, optional): Transaction type (transfer, deposit, withdrawal, conversion)
+- status (string, optional): Transaction status (completed, pending, failed)
+- minAmount (number, optional): Minimum amount
+- maxAmount (number, optional): Maximum amount
+- currency (string, optional): Currency filter
+- userId (string, optional): Filter by user ID
+
+Sample Request:
+```
+GET /api/admin/transactions?page=1&limit=20&type=withdrawal&status=completed
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "transactions": {
+        "items": [
+            {
+                "id": "trans_123",
+                "type": "withdrawal",
+                "amount": 50000.00,
+                "currency": "INR",
+                "userId": "user_123",
+                "userEmail": "john.doe@example.com",
+                "status": "completed",
+                "timestamp": "2024-03-21T18:15:00Z",
+                "method": "bank_transfer",
+                "details": {
+                    "bankAccount": "XXXXXX7890",
+                    "ifscCode": "ABCD0001234",
+                    "reference": "REF123456"
+                },
+                "riskScore": 15,
+                "flags": []
+            }
+        ],
+        "pagination": {
+            "currentPage": 1,
+            "totalPages": 50,
+            "totalItems": 1000,
+            "itemsPerPage": 20
+        },
+        "summary": {
+            "totalVolume": {
+                "INR": 10000000.00,
+                "Bitcoin": 5.0,
+                "Ethereum": 20.0
+            },
+            "transactionCount": {
+                "total": 1000,
+                "completed": 950,
+                "pending": 30,
+                "failed": 20
+            },
+            "periodMetrics": {
+                "averageAmount": 50000.00,
+                "peakVolume": 500000.00,
+                "uniqueUsers": 150
+            }
+        }
+    }
+}
+```
+
+Error Responses:
+1. Invalid Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid parameters",
+    "errors": {
+        "startDate": "Must be a valid date",
+        "type": "Invalid transaction type"
+    }
+}
+```
+
+2. Date Range Too Large (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Date range too large",
+    "error": "INVALID_DATE_RANGE",
+    "maxDays": 90
+}
+```
+
+Response Details:
+1. Transaction Information:
+   - Transaction ID and type
+   - Amount and currency
+   - User details
+   - Status and timestamp
+   - Method specific details
+   - Risk assessment
+
+2. Summary Statistics:
+   - Volume by currency
+   - Transaction counts
+   - Period metrics
+   - Risk distribution
+
+3. Risk Indicators:
+   - Risk score (0-100)
+   - Automated flags
+   - Manual reviews
+   - Compliance status
+
+Notes:
+- Real-time data available
+- Export functionality
+- Detailed audit logs
+- Risk scoring included
+- Compliance markers}
+
+GET /api/admin/emails - Get All Email Notifications
+----------------------------------------
+{Description:
+Retrieves all system-generated email notifications for administrative review. This includes user communications, alerts, and system notifications.
+
+URL: /api/admin/emails
+Method: GET
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- page (number, optional): Page number (default: 1)
+- limit (number, optional): Items per page (default: 20, max: 100)
+- type (string, optional): Email type filter
+- status (string, optional): Delivery status filter
+- search (string, optional): Search in subject/content
+- userId (string, optional): Filter by recipient
+
+Sample Request:
+```
+GET /api/admin/emails?page=1&limit=20&type=security_alert
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "emails": {
+        "items": [
+            {
+                "id": "email_123",
+                "type": "security_alert",
+                "subject": "Suspicious Login Attempt",
+                "recipient": "john.doe@example.com",
+                "userId": "user_123",
+                "status": "delivered",
+                "sentAt": "2024-03-21T18:30:00Z",
+                "deliveredAt": "2024-03-21T18:30:02Z",
+                "content": {
+                    "template": "security_alert",
+                    "data": {
+                        "location": "Mumbai, India",
+                        "ipAddress": "192.168.1.1",
+                        "device": "Unknown Device"
+                    }
+                },
+                "metadata": {
+                    "openCount": 1,
+                    "lastOpenedAt": "2024-03-21T18:35:00Z",
+                    "clickCount": 2
+                }
+            }
+        ],
+        "pagination": {
+            "currentPage": 1,
+            "totalPages": 50,
+            "totalItems": 1000,
+            "itemsPerPage": 20
+        },
+        "summary": {
+            "totalEmails": 1000,
+            "delivered": 980,
+            "bounced": 10,
+            "pending": 10,
+            "byType": {
+                "security_alert": 200,
+                "transaction_confirmation": 500,
+                "system_notification": 300
+            }
+        }
+    }
+}
+```
+
+Error Responses:
+1. Invalid Parameters (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid parameters",
+    "errors": {
+        "type": "Invalid email type",
+        "limit": "Must be between 1 and 100"
+    }
+}
+```
+
+Email Types:
+1. Security:
+   - Login alerts
+   - Password changes
+   - 2FA notifications
+   - Device verifications
+
+2. Transactions:
+   - Transfer confirmations
+   - Deposit receipts
+   - Withdrawal updates
+   - Conversion confirmations
+
+3. System:
+   - Maintenance notices
+   - Feature updates
+   - Policy changes
+   - Service disruptions
+
+Notes:
+- Email content encrypted
+- Delivery tracking
+- Bounce handling
+- Template versioning
+- Analytics included}
+
+GET /api/admin/emails/:emailId - Get Specific Email
+----------------------------------------
+{Description:
+Retrieves detailed information about a specific email notification, including delivery status, content, and recipient interaction data.
+
+URL: /api/admin/emails/:emailId
+Method: GET
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+URL Parameters:
+- emailId (string, required): ID of the email to retrieve
+
+Sample Request:
+```
+GET /api/admin/emails/email_123
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "email": {
+        "id": "email_123",
+        "type": "security_alert",
+        "subject": "Suspicious Login Attempt",
+        "recipient": {
+            "email": "john.doe@example.com",
+            "userId": "user_123",
+            "name": "John Doe"
+        },
+        "content": {
+            "template": "security_alert",
+            "version": "1.2",
+            "html": "<html>...</html>",
+            "text": "Plain text version...",
+            "data": {
+                "location": "Mumbai, India",
+                "ipAddress": "192.168.1.1",
+                "device": "Unknown Device",
+                "timestamp": "2024-03-21T18:30:00Z"
+            }
+        },
+        "status": {
+            "current": "delivered",
+            "timeline": [
+                {
+                    "status": "queued",
+                    "timestamp": "2024-03-21T18:30:00Z"
+                },
+                {
+                    "status": "sent",
+                    "timestamp": "2024-03-21T18:30:01Z"
+                },
+                {
+                    "status": "delivered",
+                    "timestamp": "2024-03-21T18:30:02Z"
+                }
+            ]
+        },
+        "metadata": {
+            "messageId": "msg_456",
+            "ipAddress": "192.168.1.2",
+            "userAgent": "Mozilla/5.0...",
+            "openCount": 1,
+            "lastOpenedAt": "2024-03-21T18:35:00Z",
+            "clickCount": 2,
+            "clicks": [
+                {
+                    "url": "https://safevault.com/security/verify",
+                    "timestamp": "2024-03-21T18:35:05Z",
+                    "ipAddress": "192.168.1.2"
+                }
+            ]
+        }
+    }
+}
+```
+
+Error Responses:
+1. Email Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "Email not found",
+    "error": "EMAIL_NOT_FOUND"
+}
+```
+
+2. Access Denied (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Insufficient permissions to access email",
+    "error": "PERMISSION_DENIED"
+}
+```
+
+Response Details:
+1. Email Content:
+   - Subject and body
+   - Template information
+   - Personalization data
+   - HTML/text versions
+
+2. Delivery Status:
+   - Current status
+   - Status timeline
+   - Delivery attempts
+   - Bounce details
+
+3. Recipient Interaction:
+   - Open tracking
+   - Click tracking
+   - Device information
+   - Location data
+
+Notes:
+- Content versioning tracked
+- Attachments supported
+- Analytics available
+- Privacy rules applied
+- Audit trail maintained}
+
+DELETE /api/admin/emails/:emailId - Delete an Email Notification
+----------------------------------------
+{Description:
+Permanently deletes an email notification from the system. This action removes the email record while maintaining compliance with data retention policies.
+
+URL: /api/admin/emails/:emailId
+Method: DELETE
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+URL Parameters:
+- emailId (string, required): ID of the email to delete
+
+Request Body Parameters:
+- reason (string, required): Reason for deletion
+- retainMetadata (boolean, optional): Keep metadata for compliance (default: true)
+
+Sample Request:
+```json
+{
+    "reason": "User data removal request",
+    "retainMetadata": true
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "Email notification deleted",
+    "deletion": {
+        "id": "del_123",
+        "emailId": "email_123",
+        "deletedBy": "admin_456",
+        "timestamp": "2024-03-21T18:45:00Z",
+        "retainedMetadata": {
+            "messageId": "msg_456",
+            "type": "security_alert",
+            "sentAt": "2024-03-21T18:30:00Z"
+        }
+    }
+}
+```
+
+Error Responses:
+1. Email Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "Email not found",
+    "error": "EMAIL_NOT_FOUND"
+}
+```
+
+2. Deletion Restricted (Status Code: 403)
+```json
+{
+    "success": false,
+    "message": "Email cannot be deleted due to compliance requirements",
+    "error": "DELETION_RESTRICTED",
+    "retentionPeriod": "7 years"
+}
+```
+
+Deletion Process:
+1. Pre-deletion Checks:
+   - Compliance requirements
+   - Retention policies
+   - Legal holds
+   - Audit requirements
+
+2. Data Handling:
+   - Content removal
+   - Metadata archival
+   - Attachment cleanup
+   - Index updates
+
+Notes:
+- Compliance rules enforced
+- Audit trail maintained
+- Metadata preserved
+- System logs updated
+- Backup references removed}
+
+PATCH /api/admin/emails/:emailId/read - Mark Email as Read
+----------------------------------------
+{Description:
+Marks an email notification as read in the administrative interface. This helps in tracking which notifications have been reviewed by administrators.
+
+URL: /api/admin/emails/:emailId/read
+Method: PATCH
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+URL Parameters:
+- emailId (string, required): ID of the email to mark as read
+
+Request Body Parameters:
+- notes (string, optional): Administrative notes
+- tags (array, optional): Tags for categorization
+
+Sample Request:
+```json
+{
+    "notes": "Reviewed and actioned",
+    "tags": ["security", "resolved"]
+}
+```
+
+Success Response:
+- Status Code: 200 OK
+```json
+{
+    "success": true,
+    "message": "Email marked as read",
+    "email": {
+        "id": "email_123",
+        "readAt": "2024-03-21T18:50:00Z",
+        "readBy": "admin_456",
+        "notes": "Reviewed and actioned",
+        "tags": ["security", "resolved"],
+        "status": "read"
+    }
+}
+```
+
+Error Responses:
+1. Email Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "Email not found",
+    "error": "EMAIL_NOT_FOUND"
+}
+```
+
+2. Already Read (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Email already marked as read",
+    "error": "ALREADY_READ",
+    "readDetails": {
+        "readAt": "2024-03-21T17:00:00Z",
+        "readBy": "admin_789"
+    }
+}
+```
+
+Update Details:
+1. Status Changes:
+   - Timestamp recorded
+   - Admin identified
+   - Notes captured
+   - Tags updated
+
+2. Notifications:
+   - Team alerts
+   - Status updates
+   - Dashboard refresh
+   - Report updates
+
+Notes:
+- Multiple reads tracked
+- Team collaboration supported
+- Status history maintained
+- Analytics updated
+- Workflow integration}
+
+1. Report Routes (/api/reports)
+
+GET /api/reports/download/:userId - Download User Report as PDF
+----------------------------------------
+{Description:
+Generates and downloads a comprehensive PDF report for a specific user, including their account details, transaction history, and portfolio performance.
+
+URL: /api/reports/download/:userId
+Method: GET
+Authentication: Required (Admin JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+URL Parameters:
+- userId (string, required): ID of the user to generate report for
+
+Query Parameters:
+- startDate (string, optional): Start date for report period (ISO format)
+- endDate (string, optional): End date for report period (ISO format)
+- includeKYC (boolean, optional): Include KYC details (default: false)
+- includeTransactions (boolean, optional): Include transactions (default: true)
+- format (string, optional): Report format (pdf, csv) (default: pdf)
+
+Sample Request:
+```
+GET /api/reports/download/user_123?startDate=2024-01-01T00:00:00Z&endDate=2024-03-21T23:59:59Z&includeKYC=true
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+- Content-Type: application/pdf
+- Content-Disposition: attachment; filename="user_report_123.pdf"
+
+Error Responses:
+1. User Not Found (Status Code: 404)
+```json
+{
+    "success": false,
+    "message": "User not found",
+    "error": "USER_NOT_FOUND"
+}
+```
+
+2. Invalid Date Range (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid date range",
+    "error": "INVALID_DATE_RANGE",
+    "maxDays": 365
+}
+```
+
+3. Report Generation Failed (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Report generation failed",
+    "error": "GENERATION_FAILED"
+}
+```
+
+Report Sections:
+1. Account Overview:
+   - User details
+   - Account status
+   - KYC information
+   - Risk assessment
+
+2. Portfolio Summary:
+   - Current balances
+   - Asset distribution
+   - Value changes
+   - Performance metrics
+
+3. Transaction History:
+   - Detailed transactions
+   - Category breakdown
+   - Monthly summaries
+   - Trend analysis
+
+4. Security Overview:
+   - Login history
+   - Security settings
+   - Alert history
+   - Device access
+
+Notes:
+- Report generation async
+- PDF digitally signed
+- Watermarked for security
+- Data snapshot included
+- Compliance formatted}
+
+GET /api/reports/api-docs - Download API Documentation as PDF
+----------------------------------------
+{Description:
+Generates and downloads comprehensive API documentation in PDF format, including all endpoints, authentication methods, and example requests/responses.
+
+URL: /api/reports/api-docs
+Method: GET
+Authentication: Required (JWT Token)
+Headers Required: 
+- Authorization: Bearer {jwt_token}
+
+Query Parameters:
+- version (string, optional): API version (default: latest)
+- format (string, optional): Documentation format (pdf, html) (default: pdf)
+- language (string, optional): Documentation language (en, hi) (default: en)
+
+Sample Request:
+```
+GET /api/reports/api-docs?version=v1&format=pdf&language=en
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Success Response:
+- Status Code: 200 OK
+- Content-Type: application/pdf
+- Content-Disposition: attachment; filename="safevault_api_docs_v1.pdf"
+
+Error Responses:
+1. Invalid Version (Status Code: 400)
+```json
+{
+    "success": false,
+    "message": "Invalid API version",
+    "error": "INVALID_VERSION",
+    "availableVersions": ["v1", "v2"]
+}
+```
+
+2. Generation Failed (Status Code: 500)
+```json
+{
+    "success": false,
+    "message": "Documentation generation failed",
+    "error": "GENERATION_FAILED"
+}
+```
+
+Documentation Sections:
+1. Introduction:
+   - API Overview
+   - Authentication
+   - Rate Limiting
+   - Error Handling
+
+2. Endpoints:
+   - Authentication Routes
+   - User Routes
+   - Cash Routes
+   - Admin Routes
+   - Report Routes
+
+3. Security:
+   - Best Practices
+   - Token Management
+   - Error Codes
+   - Compliance
+
+4. Examples:
+   - Code Samples
+   - Use Cases
+   - Integration Guide
+   - Testing Guide
+
+Notes:
+- Auto-generated docs
+- Interactive examples
+- Schema validation
+- Version controlled
+- Regular updates}

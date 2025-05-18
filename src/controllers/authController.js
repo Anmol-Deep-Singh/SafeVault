@@ -22,6 +22,14 @@ const register = async (req, res) => {
             });
         }
 
+        // Validate password strength
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                error: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+            });
+        }
+
         // Check if user already exists
         const existingUser = await User.findOne({ 
             $or: [{ email }, { mobileNumber }] 
@@ -33,15 +41,12 @@ const register = async (req, res) => {
             });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create new user
+        // Create new user (password will be hashed by the pre-save hook)
         const user = new User({
             fullName,
             email,
             mobileNumber,
-            password: hashedPassword
+            password
         });
 
         await user.save();
@@ -50,6 +55,7 @@ const register = async (req, res) => {
         const token = generateToken(user._id);
 
         res.status(201).json({
+            success: true,
             message: 'User registered successfully',
             token,
             user: {
@@ -85,33 +91,71 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Validate required fields
+        if (!email || !password) {
+            return res.status(400).json({
+                error: 'Email and password are required'
+            });
+        }
+
         // Find user by email
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ 
+                error: 'Invalid credentials',
+                message: 'No user found with this email'
+            });
         }
 
         // Check password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ 
+                error: 'Invalid credentials',
+                message: 'Incorrect password'
+            });
+        }
+
+        // Check if user is banned
+        if (user.isBanned) {
+            const wasLifted = await user.checkAndLiftBan();
+            if (!wasLifted) {
+                const remainingTime = user.getRemainingBanTime();
+                return res.status(403).json({
+                    error: 'Account banned',
+                    reason: user.banReason,
+                    bannedAt: user.bannedAt,
+                    remainingTime
+                });
+            }
         }
 
         // Generate token
         const token = generateToken(user._id);
 
         res.json({
+            success: true,
             message: 'Login successful',
             token,
             user: {
                 id: user._id,
                 fullName: user.fullName,
                 email: user.email,
-                mobileNumber: user.mobileNumber
+                mobileNumber: user.mobileNumber,
+                balances: {
+                    INR: user.INR,
+                    Bitcoin: user.Bitcoin,
+                    Ethereum: user.Ethereum,
+                    Dogecoin: user.Dogecoin
+                }
             }
         });
     } catch (error) {
-        res.status(500).json({ error: 'Error logging in' });
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            error: 'Error logging in',
+            details: error.message
+        });
     }
 };
 
@@ -272,16 +316,14 @@ const updateProfile = async (req, res) => {
     try {
         const user = req.user;
 
-        for (let update of updates) {
-            if (update === 'password') {
-                user[update] = await bcrypt.hash(req.body[update], 10);
-            } else {
-                user[update] = req.body[update];
-            }
-        }
+        updates.forEach(update => {
+            user[update] = req.body[update];
+        });
 
         await user.save();
+
         res.json({
+            success: true,
             message: 'Profile updated successfully',
             user: {
                 id: user._id,
@@ -291,7 +333,11 @@ const updateProfile = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ error: 'Error updating profile' });
+        console.error('Profile update error:', error);
+        res.status(500).json({ 
+            error: 'Error updating profile',
+            details: error.message
+        });
     }
 };
 

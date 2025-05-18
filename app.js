@@ -6,11 +6,12 @@ const userRoutes = require("./src/routes/userRoutes.js");
 const authRoutes = require('./src/routes/authRoutes.js');
 const reportRoutes = require('./src/routes/reportRoutes.js');
 const adminRoutes = require('./src/routes/adminRoutes.js');
+const cashRoutes = require('./src/routes/cashRoutes.js');
 
 const app = express();
 const PORT = 8000;
 
-// Middleware(CORS,)
+// Middleware(CORS)
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -32,6 +33,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/cash', cashRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

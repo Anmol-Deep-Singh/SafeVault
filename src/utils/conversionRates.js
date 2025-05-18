@@ -4,7 +4,7 @@ async function getConversionRates() {
     try {
         const realTimePrices = await getRealTimePrices();
         
-        // Create conversion rates object using real-time prices
+        
         const rates = {
             INR: {
                 INR: 1,
