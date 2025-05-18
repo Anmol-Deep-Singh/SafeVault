@@ -1,12 +1,11 @@
 const express = require('express');
-const connectDB = require('./src/config/db.js');
 const cors = require('cors');
-
+const connectDB = require('./src/config/db.js');
+const { scheduleFraudDetection } = require('./src/jobs/fraudDetectionJob.js');
 const userRoutes = require("./src/routes/userRoutes.js");
 const authRoutes = require('./src/routes/authRoutes.js');
 const reportRoutes = require('./src/routes/reportRoutes.js');
 const adminRoutes = require('./src/routes/adminRoutes.js');
-const { scheduleFraudDetection } = require('./src/jobs/fraudDetectionJob.js');
 
 const app = express();
 const PORT = 8000;

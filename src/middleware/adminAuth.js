@@ -12,7 +12,6 @@ const adminAuth = async (req, res, next) => {
 
         const decoded = jwt.verify(token, JWT_SECRET);
         
-        // Check if it's an admin token
         if (!decoded.isAdmin) {
             throw new Error('Not authorized as admin');
         }

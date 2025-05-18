@@ -239,6 +239,388 @@ async function generateUserReport(user, transactions) {
     }
 }
 
+async function generateAPIDocumentation() {
+    try {
+        console.log('Starting API documentation generation...');
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 50
+        });
+
+        // Create docs directory if it doesn't exist
+        const docsDir = path.join(process.cwd(), 'docs');
+        console.log('Creating docs directory at:', docsDir);
+        if (!fs.existsSync(docsDir)) {
+            fs.mkdirSync(docsDir, { recursive: true });
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `safevault_api_documentation_${timestamp}.pdf`;
+        const filePath = path.join(docsDir, filename);
+        console.log('PDF will be saved at:', filePath);
+
+        // Create a promise to track when the PDF is finished
+        const finishPromise = new Promise((resolve, reject) => {
+            doc.on('end', () => {
+                console.log('PDF generation completed');
+                resolve();
+            });
+            doc.on('error', (err) => {
+                console.error('Error during PDF generation:', err);
+                reject(err);
+            });
+        });
+
+        const writeStream = fs.createWriteStream(filePath);
+        writeStream.on('error', (err) => {
+            console.error('Error writing to file:', err);
+        });
+        writeStream.on('finish', () => {
+            console.log('File write stream finished');
+        });
+
+        doc.pipe(writeStream);
+
+        // Title Page
+        doc.fontSize(24)
+           .font('Helvetica-Bold')
+           .text('SafeVault API Documentation', { align: 'center' })
+           .moveDown()
+           .fontSize(14)
+           .font('Helvetica')
+           .text('Version: 1.0.0', { align: 'center' })
+           .text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' })
+           .text('Author: Anmoldeep Singh', { align: 'center' })
+           .moveDown(2);
+
+        // Table of Contents
+        doc.fontSize(16)
+           .font('Helvetica-Bold')
+           .text('Table of Contents')
+           .moveDown();
+
+        const sections = [
+            'Overview',
+            'Authentication',
+            'User Operations',
+            'Admin Operations',
+            'Reports',
+            'Data Models',
+            'Security',
+            'Support'
+        ];
+
+        sections.forEach((section, index) => {
+            doc.fontSize(12)
+               .font('Helvetica')
+               .text(`${index + 1}. ${section}`, {
+                   link: section.toLowerCase(),
+                   underline: true,
+                   color: 'blue'
+               })
+               .moveDown(0.5);
+        });
+
+        doc.addPage();
+
+        // Overview Section
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('1. Overview', { destination: 'overview' })
+           .moveDown();
+
+        doc.fontSize(12)
+           .font('Helvetica')
+           .text('SafeVault provides a RESTful API for secure digital wallet and cryptocurrency management. The API enables users to perform secure transactions while providing administrative controls for enhanced security and monitoring.')
+           .moveDown()
+           .text('Base URL: http://localhost:8000/api')
+           .moveDown(2);
+
+        // Authentication Section
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('2. Authentication', { destination: 'authentication' })
+           .moveDown();
+
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .text('Register User')
+           .moveDown(0.5);
+
+        doc.fontSize(12)
+           .font('Helvetica')
+           .text('POST /auth/register')
+           .moveDown(0.5)
+           .font('Courier')
+           .text(JSON.stringify({
+               fullName: "string",
+               email: "string",
+               mobileNumber: "string",
+               password: "string"
+           }, null, 2))
+           .moveDown();
+
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .text('Login')
+           .moveDown(0.5);
+
+        doc.fontSize(12)
+           .font('Helvetica')
+           .text('POST /auth/login')
+           .moveDown(0.5)
+           .font('Courier')
+           .text(JSON.stringify({
+               email: "string",
+               password: "string"
+           }, null, 2))
+           .moveDown(2);
+
+        // User Operations Section
+        doc.addPage();
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('3. User Operations', { destination: 'user-operations' })
+           .moveDown();
+
+        const userEndpoints = [
+            {
+                name: 'Get Profile',
+                method: 'GET',
+                endpoint: '/users/profile',
+                description: 'Retrieve user profile information'
+            },
+            {
+                name: 'Transfer Funds',
+                method: 'POST',
+                endpoint: '/users/transfer/:username',
+                body: {
+                    amount: "number",
+                    currencyType: "string (INR/Bitcoin/Ethereum/Dogecoin)"
+                }
+            },
+            {
+                name: 'Convert Currency',
+                method: 'POST',
+                endpoint: '/users/conversion/convert/:userId',
+                body: {
+                    amount: "number",
+                    fromCurrency: "string",
+                    toCurrency: "string"
+                }
+            }
+        ];
+
+        userEndpoints.forEach(endpoint => {
+            doc.fontSize(14)
+               .font('Helvetica-Bold')
+               .text(endpoint.name)
+               .moveDown(0.5)
+               .fontSize(12)
+               .font('Helvetica')
+               .text(`${endpoint.method} ${endpoint.endpoint}`)
+               .moveDown(0.5);
+
+            if (endpoint.body) {
+                doc.font('Courier')
+                   .text(JSON.stringify(endpoint.body, null, 2))
+                   .moveDown();
+            }
+
+            if (endpoint.description) {
+                doc.font('Helvetica')
+                   .text(endpoint.description)
+                   .moveDown();
+            }
+            doc.moveDown();
+        });
+
+        // Admin Operations Section
+        doc.addPage();
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('4. Admin Operations', { destination: 'admin-operations' })
+           .moveDown();
+
+        const adminEndpoints = [
+            {
+                name: 'Admin Login',
+                method: 'POST',
+                endpoint: '/admin/login',
+                body: {
+                    email: "string",
+                    password: "string"
+                }
+            },
+            {
+                name: 'List Users',
+                method: 'GET',
+                endpoint: '/admin/users'
+            },
+            {
+                name: 'Ban User',
+                method: 'POST',
+                endpoint: '/admin/users/:userId/ban'
+            },
+            {
+                name: 'Flag User',
+                method: 'POST',
+                endpoint: '/admin/users/:userId/flag'
+            },
+            {
+                name: 'Delete User',
+                method: 'DELETE',
+                endpoint: '/admin/users/:username/delete'
+            }
+        ];
+
+        adminEndpoints.forEach(endpoint => {
+            doc.fontSize(14)
+               .font('Helvetica-Bold')
+               .text(endpoint.name)
+               .moveDown(0.5)
+               .fontSize(12)
+               .font('Helvetica')
+               .text(`${endpoint.method} ${endpoint.endpoint}`)
+               .moveDown(0.5);
+
+            if (endpoint.body) {
+                doc.font('Courier')
+                   .text(JSON.stringify(endpoint.body, null, 2))
+                   .moveDown();
+            }
+            doc.moveDown();
+        });
+
+        // Reports Section
+        doc.addPage();
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('5. Reports', { destination: 'reports' })
+           .moveDown();
+
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .text('Generate User Report')
+           .moveDown(0.5)
+           .fontSize(12)
+           .font('Helvetica')
+           .text('GET /reports/download/:userId')
+           .moveDown()
+           .text('Response: PDF file containing user transaction history and portfolio details')
+           .moveDown(2);
+
+        // Data Models Section
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('6. Data Models', { destination: 'data-models' })
+           .moveDown();
+
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .text('User Model')
+           .moveDown(0.5)
+           .fontSize(12)
+           .font('Courier')
+           .text(JSON.stringify({
+               fullName: "string",
+               email: "string",
+               mobileNumber: "string",
+               INR: "number",
+               Bitcoin: "number",
+               Ethereum: "number",
+               Dogecoin: "number",
+               isBanned: "boolean",
+               isFlaged: "boolean"
+           }, null, 2))
+           .moveDown(2);
+
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .text('Transaction Model')
+           .moveDown(0.5)
+           .fontSize(12)
+           .font('Courier')
+           .text(JSON.stringify({
+               sender: {
+                   userId: "string",
+                   fullName: "string"
+               },
+               receiver: {
+                   userId: "string",
+                   fullName: "string"
+               },
+               amount: "number",
+               currencyType: "string",
+               timestamp: "date"
+           }, null, 2))
+           .moveDown(2);
+
+        // Security Section
+        doc.addPage();
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('7. Security', { destination: 'security' })
+           .moveDown();
+
+        const securityFeatures = [
+            'All endpoints use HTTPS',
+            'Passwords are hashed using bcrypt',
+            'JWT tokens expire after 24 hours',
+            'Rate limiting prevents brute force attacks',
+            'Input validation prevents injection attacks',
+            'Transaction validation ensures data integrity'
+        ];
+
+        securityFeatures.forEach(feature => {
+            doc.fontSize(12)
+               .font('Helvetica')
+               .text(`• ${feature}`)
+               .moveDown(0.5);
+        });
+
+        // Support Section
+        doc.addPage();
+        doc.fontSize(20)
+           .font('Helvetica-Bold')
+           .text('8. Support', { destination: 'support' })
+           .moveDown();
+
+        doc.fontSize(12)
+           .font('Helvetica')
+           .text('For API support, please contact:')
+           .moveDown()
+           .text('Email: support@safevault.com')
+           .text('GitHub Issues: github.com/anmoldeepsingh/SafeVault/issues')
+           .moveDown(2);
+
+        // Footer
+        doc.fontSize(10)
+           .text('© 2024 SafeVault. All rights reserved.', {
+               align: 'center'
+           });
+
+        console.log('Ending PDF generation...');
+        await doc.end();
+        await finishPromise;
+
+        console.log('Checking if file exists:', fs.existsSync(filePath));
+        console.log('File size:', fs.statSync(filePath).size);
+
+        return {
+            success: true,
+            filePath
+        };
+    } catch (error) {
+        console.error('Error in generateAPIDocumentation:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 module.exports = {
-    generateUserReport
+    generateUserReport,
+    generateAPIDocumentation
 }; 

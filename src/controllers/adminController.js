@@ -5,12 +5,10 @@ const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/jwt');
 const Email = require('../models/email');
 
-// Generate JWT token for admin
 const generateAdminToken = (adminId) => {
     return jwt.sign({ adminId, isAdmin: true }, JWT_SECRET, { expiresIn: '24h' });
 };
 
-// Admin login
 const adminLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -25,7 +23,6 @@ const adminLogin = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Update last login
         admin.lastLogin = new Date();
         await admin.save();
 
@@ -46,7 +43,6 @@ const adminLogin = async (req, res) => {
     }
 };
 
-// Get all users
 const getAllUsers = async (req, res) => {
     try {
         const users = await User.find({})
@@ -69,7 +65,6 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-// Ban/Unban a user
 const banUser = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -81,11 +76,10 @@ const banUser = async (req, res) => {
         }
 
         if (!isBanned) {
-            // Unban user
             user.isBanned = false;
             user.banReason = null;
             user.bannedAt = null;
-            user.banDuration = 48; // Reset to default
+            user.banDuration = 48;
             await user.save();
 
             return res.json({
@@ -99,7 +93,6 @@ const banUser = async (req, res) => {
             });
         }
 
-        // Ban user
         user.isBanned = true;
         user.banReason = reason;
         user.bannedAt = new Date();
@@ -130,7 +123,6 @@ const banUser = async (req, res) => {
     }
 };
 
-// Flag/Unflag a user
 const flagUser = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -142,7 +134,6 @@ const flagUser = async (req, res) => {
         }
 
         if (!isFlaged) {
-            // Unflag user
             user.isFlaged = false;
             user.flagReason = null;
             user.flaggedAt = null;
@@ -160,7 +151,6 @@ const flagUser = async (req, res) => {
             });
         }
 
-        // Flag user
         user.isFlaged = true;
         user.flagReason = reason;
         user.flaggedAt = new Date();
@@ -183,7 +173,6 @@ const flagUser = async (req, res) => {
     }
 };
 
-// Get all transactions
 const getAllTransactions = async (req, res) => {
     try {
         const { 
@@ -198,7 +187,6 @@ const getAllTransactions = async (req, res) => {
         
         let query = {};
 
-        // Filter by user(s)
         if (userId) {
             const userIds = userId.split(',').map(id => id.trim());
             query.$or = [
@@ -207,16 +195,12 @@ const getAllTransactions = async (req, res) => {
             ];
         }
 
-        // Filter by coin types
         if (coins) {
             const coinTypes = coins.split(',').map(coin => coin.trim());
             const currencyPatterns = [];
             
             coinTypes.forEach(coin => {
-                // Direct currency matches
                 currencyPatterns.push(coin);
-                
-                // Conversion patterns (e.g., "Bitcoin_TO_" or "_TO_Bitcoin")
                 currencyPatterns.push(new RegExp(`${coin}_TO_`));
                 currencyPatterns.push(new RegExp(`_TO_${coin}`));
             });
@@ -224,7 +208,6 @@ const getAllTransactions = async (req, res) => {
             query.currencyType = { $in: currencyPatterns };
         }
 
-        // Filter by date range
         if (startDate || endDate) {
             query.timestamp = {};
             if (startDate) {
@@ -262,10 +245,9 @@ const getAllTransactions = async (req, res) => {
     }
 };
 
-// Get all flagged and banned users
 const getFlaggedAndBannedUsers = async (req, res) => {
     try {
-        const { status } = req.query; // Optional: filter by 'flagged', 'banned', or both if not specified
+        const { status } = req.query;
         
         let query = {
             $or: [
@@ -274,7 +256,6 @@ const getFlaggedAndBannedUsers = async (req, res) => {
             ]
         };
 
-        // Apply additional filter if status is specified
         if (status === 'flagged') {
             query = { isFlaged: true };
         } else if (status === 'banned') {
@@ -323,19 +304,16 @@ const getFlaggedAndBannedUsers = async (req, res) => {
     }
 };
 
-// Get all admin emails with pagination and filters
 const getEmails = async (req, res) => {
     try {
         const { page = 1, limit = 10, type, isRead, severity } = req.query;
         const skip = (page - 1) * limit;
 
-        // Build query
         const query = {};
         if (type) query.type = type;
         if (isRead !== undefined) query.isRead = isRead === 'true';
         if (severity) query.severity = severity;
 
-        // Get emails with pagination
         const [emails, totalCount] = await Promise.all([
             Email.find(query)
                 .sort({ createdAt: -1 })
@@ -344,7 +322,6 @@ const getEmails = async (req, res) => {
             Email.countDocuments(query)
         ]);
 
-        // Get unread count
         const unreadCount = await Email.countDocuments({ isRead: false });
 
         res.json({
@@ -362,7 +339,6 @@ const getEmails = async (req, res) => {
     }
 };
 
-// Get single email by ID
 const getEmailById = async (req, res) => {
     try {
         const email = await Email.findById(req.params.emailId);
@@ -378,7 +354,6 @@ const getEmailById = async (req, res) => {
     }
 };
 
-// Delete an email
 const deleteEmail = async (req, res) => {
     try {
         const email = await Email.findByIdAndDelete(req.params.emailId);
@@ -394,7 +369,6 @@ const deleteEmail = async (req, res) => {
     }
 };
 
-// Mark email as read
 const markEmailAsRead = async (req, res) => {
     try {
         const email = await Email.findByIdAndUpdate(
@@ -414,6 +388,35 @@ const markEmailAsRead = async (req, res) => {
     }
 };
 
+const permanentlyDeleteUser = async (req, res) => {
+    try {
+        const { username } = req.params;
+        
+        const user = await User.findOne({ fullName: username });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        await Transaction.deleteMany({
+            $or: [
+                { 'sender.userId': user._id },
+                { 'receiver.userId': user._id }
+            ]
+        });
+
+        await User.findByIdAndDelete(user._id);
+
+        res.json({
+            message: 'User account and all related transactions have been permanently deleted'
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: 'Failed to delete user account', 
+            details: error.message 
+        });
+    }
+};
+
 module.exports = {
     adminLogin,
     getAllUsers,
@@ -424,5 +427,6 @@ module.exports = {
     getEmails,
     getEmailById,
     deleteEmail,
-    markEmailAsRead
-}; 
+    markEmailAsRead,
+    permanentlyDeleteUser
+};

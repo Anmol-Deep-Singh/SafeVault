@@ -1,215 +1,118 @@
 # SafeVault
 
-A secure and efficient digital transaction management system that enables users to perform secure transactions while providing administrative controls for enhanced security and monitoring.
+A secure and efficient digital wallet and cryptocurrency management system that enables users to perform secure transactions while providing administrative controls for enhanced security and monitoring.
 
 ## Features
 
-- Secure user authentication and authorization
-- Transaction management with real-time processing
-- Admin dashboard for user management and monitoring
-- Permanent account deletion capabilities
-- Comprehensive API documentation
-- Security measures including password verification and admin authentication
+- 🔒 Secure user authentication and authorization with JWT
+- 💸 Real-time cryptocurrency transactions and conversions
+- 📊 Live cryptocurrency price tracking
+- 🎯 Transaction monitoring and fraud detection
+- 👥 User management with ban/flag capabilities
+- 📱 Mobile-friendly API design
+- 🔍 Comprehensive transaction history
+- 📄 PDF report generation
+- 🛡️ Advanced security measures
 
-## Installation
+## Prerequisites
 
-1. Clone the repository:
+- Node.js >= 18.0.0
+- MongoDB >= 8.0.0
+- npm or yarn
+
+## Quick Start
+
+1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/SafeVault.git
+git clone https://github.com/Anmol-Deep-Singh/SafeVault.git
 cd SafeVault
 ```
 
-2. Install dependencies:
+2. **Install dependencies**
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
-Create a `.env` file in the root directory with the following variables:
+3. **Environment Setup**
+Create a `.env` file in the root directory:
 ```env
-PORT=3000
-MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
+PORT=8000
+MONGODB_URI=mongodb://localhost:27017/safeVault
+JWT_SECRET=your_jwt_secret_key
 ADMIN_EMAIL=admin@safevault.com
 ADMIN_PASSWORD=secure_admin_password
 ```
 
-4. Start the application:
+4. **Start MongoDB**
+Ensure MongoDB is running on your system:
+```bash
+mongod
+```
+
+5. **Run the application**
+Development mode:
+```bash
+npm run dev
+```
+
+Production mode:
 ```bash
 npm start
 ```
 
+## Project Structure
+
+```
+safevault/
+├── src/
+│   ├── config/         # Configuration files
+│   ├── controllers/    # Route controllers
+│   ├── middleware/     # Custom middleware
+│   ├── models/        # Database models
+│   ├── routes/        # API routes
+│   ├── utils/         # Utility functions
+│   └── jobs/          # Scheduled jobs
+├── reports/           # Generated reports
+├── app.js            # Application entry point
+├── package.json      # Project metadata
+└── README.md         # Project documentation
+```
+
 ## API Documentation
 
-### Authentication Routes
-
-#### User Login
-```http
-POST /api/auth/login
-```
-Request body:
-```json
-{
-    "email": "user@example.com",
-    "password": "userpassword"
-}
-```
-
-#### Admin Login
-```http
-POST /api/admin/login
-```
-Request body:
-```json
-{
-    "email": "admin@safevault.com",
-    "password": "adminpassword"
-}
-```
-
-### User Routes
-
-#### Get All Users (Admin)
-```http
-GET /api/admin/users
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Delete Own Account
-```http
-DELETE /api/users/delete
-```
-Headers:
-```
-Authorization: Bearer {user_token}
-```
-Request body:
-```json
-{
-    "password": "current_password"
-}
-```
-
-### Admin Routes
-
-#### Permanently Delete User
-```http
-DELETE /api/admin/users/:username/delete
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Get Flagged and Banned Users
-```http
-GET /api/admin/users/flagged-banned
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Ban User
-```http
-POST /api/admin/users/:userId/ban
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Flag User
-```http
-POST /api/admin/users/:userId/flag
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-### Transaction Routes
-
-#### Get All Transactions (Admin)
-```http
-GET /api/admin/transactions
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-### Email Management Routes
-
-#### Get All Emails (Admin)
-```http
-GET /api/admin/emails
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Get Email by ID (Admin)
-```http
-GET /api/admin/emails/:emailId
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Delete Email (Admin)
-```http
-DELETE /api/admin/emails/:emailId
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-#### Mark Email as Read (Admin)
-```http
-PATCH /api/admin/emails/:emailId/read
-```
-Headers:
-```
-Authorization: Bearer {admin_token}
-```
-
-## Response Formats
-
-All API responses follow this general format:
-
-### Success Response
-```json
-{
-    "message": "Operation successful",
-    "data": {
-        // Response data
-    }
-}
-```
-
-### Error Response
-```json
-{
-    "error": "Error message",
-    "details": "Detailed error information"
-}
-```
+See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API endpoints and usage.
 
 ## Security Features
 
 - JWT-based authentication
-- Password hashing using bcrypt
-- Admin authentication middleware
-- Request validation
-- Error handling and logging
-- Secure password verification for account deletion
+- Password hashing with bcrypt
+- Input validation and sanitization
+- Rate limiting
+- Transaction validation
+- Fraud detection system
+- Admin authorization levels
+- Banned user checks
+
+## Development
+
+```bash
+# Run in development mode
+npm run dev
+
+# Lint code
+npm run lint
+
+# Run tests (when implemented)
+npm test
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## Author
 
