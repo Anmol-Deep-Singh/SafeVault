@@ -1,11 +1,34 @@
 const express = require('express');
 const router = express.Router();
-const Transaction = require('../models/transaction.js');
-const User = require('../models/user.js');
+const auth = require('../middleware/auth');
+const {
+    validateTransaction,
+    validateBalance,
+    validateReceiver,
+    handleValidationErrors
+} = require('../middleware/transactionValidation');
+const {
+    transferFunds,
+    getTransactionHistory,
+    getBalance
+} = require('../controllers/transactionController');
 
-router.get('/', (req, res) => {
-  res.send('This is the the list of all the transactions');
-});
-//all the rest query parameters are left for now because of no logical idea with it
+// All routes require authentication
+router.use(auth);
+
+// Transfer funds
+router.post('/transfer',
+    validateTransaction,
+    handleValidationErrors,
+    validateReceiver,
+    validateBalance,
+    transferFunds
+);
+
+// Get transaction history
+router.get('/history', getTransactionHistory);
+
+// Get current balance
+router.get('/balance', getBalance);
 
 module.exports = router;
